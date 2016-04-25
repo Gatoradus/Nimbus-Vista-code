@@ -7,53 +7,54 @@ class Player(object):
         self.height = 72
         self.weight = 200
 
+    def start(self):
+        print ("starting Player...")
+
+class PlayerThread(object):
+    def __init__(self, player):
+        self.player = player
+
+class Brain(PlayerThread):
+    def __init__(self, player):
+        super().__init__()
+
     def run(self):
-        print ("starting Player thread...")
+        print ("starting Brain PlayerThread...")
         
+class PostOffice(PlayerThread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        print ("starting PostOffice PlayerThread...")
+
+class PlayerMapper(PlayerThread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        print ("starting PlayerMapper PlayerThread...")
+
+class FirstAide(PlayerThread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        print ("starting FirstAide PlayerThread...")
+
+class Sensor(PlayerThread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        print ("starting Sensor PlayerThread...")
+
+
 
 class Bot(Player):
     def __init__(self):
-        pass
+        super().__init__()
 
-    def run(self):
-        print ("starting Bot thread...")
-
-class Brain(Player):
-    def __init__(self):
-        pass
-
-    def run(self):
-        print ("starting Brain thread...")
-        
-class PostOffice(Player):
-    def __init__(self):
-        pass
-
-    def run(self):
-        print ("starting PostOffice thread...")
-
-class PlayerMapper(Player):
-    def __init__(self):
-        pass
-
-    def run(self):
-        print ("starting PlayerMapper thread...")
-
-class FirstAide(Player):
-    def __init__(self):
-        pass
-
-    def run(self):
-        print ("starting FirstAide thread...")
-
-class Sensor(Player):
-    def __init__(self):
-        pass
-
-    def run(self):
-        print ("starting Sensor thread...")
-
-
-
-
+    def start(self):
+        print ("starting Bot ...")
         

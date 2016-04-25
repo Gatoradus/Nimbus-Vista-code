@@ -7,7 +7,7 @@ from Player import *
 
 p = Player()
 
-p.run()
+p.start()
 
 
 
