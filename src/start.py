@@ -25,15 +25,18 @@ fp.close()
 
 configDict = json.loads(dictStr)
 multicast_group = configDict["multicast_group"]
-server_address = configDict["server_address"]
+server_address = (configDict["server_address"][0],configDict["server_address"][1])
 napTime = configDict["napTime"]
 
-for pd in configDict["players"]:
+(receiverAddress,startingPort) = server_address
+
+for pd in configDict["players"]:    
     pd["multicast_group"] = multicast_group
-    pd["server_address"] = server_address
+    pd["server_address"] = (receiverAddress,startingPort)
     pd["napTime"] = napTime
     p = Player(pd)
     players.append(p)
+    startingPort = startingPort + 1
     
 
 for p in players:

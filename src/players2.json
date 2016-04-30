@@ -1,6 +1,6 @@
 {
 	"multicast_group": "224.3.29.71",
-	"server_address": ["", 1000],
+	"server_address": ["", 10000],
 	"napTime": 1,
 	"players": [
 		{
@@ -10,6 +10,7 @@
 			"weight": 200,
 			"height": 72,
 			"name": "Player-0000"
+			
 		},
 		{
 			"x": 0,
