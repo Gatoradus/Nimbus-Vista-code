@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#from mcast_receiver import server_address
 
 print ("hello")
 
@@ -24,9 +25,13 @@ fp.close()
 
 configDict = json.loads(dictStr)
 multicast_group = configDict["multicast_group"]
+server_address = configDict["server_address"]
+napTime = configDict["napTime"]
 
 for pd in configDict["players"]:
     pd["multicast_group"] = multicast_group
+    pd["server_address"] = server_address
+    pd["napTime"] = napTime
     p = Player(pd)
     players.append(p)
     

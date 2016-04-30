@@ -1,6 +1,7 @@
 import threading
 import time
 import json
+#from asyncio.windows_events import NULL
 
 class Player(object):
     def __init__(self,pd=dict()):
@@ -14,18 +15,21 @@ class Player(object):
             self.weight = 200
             self.name = "UNNAMED"
         self.brainThread = Brain(self)
+        self.PMThread = PlayerMapper(self)
         self.threadPool = [self.brainThread]
 
     def start(self):
         print ("starting Player...")
         
 
-    def fromJSON(d):
+    def fromJSON(self):
         p = Player()
-        for (k,v) in d.items():
+        for (k,v) in self.items():
             p.__dict__[k] = v
-        #p.__dict__ = d
+        #p.__dict__ = self
         return p
+    
+    
 
     
 
@@ -36,56 +40,79 @@ class PlayerThread(threading.Thread):
     def __init__(self, player):
         super(PlayerThread, self).__init__()
         self.player = player
+        self.napTime = player.napTime
+        
+    
+    def runTasks(self):
+        """runTasks: overload in subclasses to carry out needed tasks."""
+        raise NotImplementedError("Must override runTasks")
 
-    def run(self):
-        while True:
-            print ("run..." + self.player.name)
-            time.sleep(5)
+    
+
+    
 
 class Brain(PlayerThread):
     def __init__(self, player):
         super(Brain, self).__init__(player)
 
     def run(self):
-        print ("starting Brain PlayerThread..." + self.player.name)
-        super().run()
+        print ("starting Brain..." + self.player.name)
+        while True:
+            if not self.player.PMThread.isAlive():
+                    self.player.PMThread.start()
+            print ("Brain is running..." + self.player.name)
+            time.sleep(self.napTime)
+            
+            
+    #def runTasks(self):
+    #    """runTasks: overload in subclasses to carry out needed tasks."""
+    #    print("This is runTasks() in the Brain thread!!")
         
 class PostOffice(PlayerThread):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, player):
+        super(PostOffice, self).__init__(player)
 
     def run(self):
-        print ("starting PostOffice PlayerThread..." + self.player.name)
+        print ("starting PostOffice..." + self.player.name)
+        
 
 class PlayerMapper(PlayerThread):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, player):
+        super(PlayerMapper, self).__init__(player)
 
     def run(self):
-        print ("starting PlayerMapper PlayerThread..." + self.player.name)
-
+        print ("starting PlayerMapper..." + self.player.name)
+        while True:
+            print ("PlayerMapper is running..." + self.player.name)
+            time.sleep(self.napTime*3)
+            
 class FirstAide(PlayerThread):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, player):
+        super(FirstAide, self).__init__(player)
 
     def run(self):
-        print ("starting FirstAide PlayerThread..." + self.player.name)
+        print ("starting FirstAide..." + self.player.name)
+        
 
 class Sensor(PlayerThread):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, player):
+        super(Sensor, self).__init__(player)
 
     def run(self):
-        print ("starting Sensor PlayerThread..." + self.player.name)
+        print ("starting Sensor..." + self.player.name)
+        
 
 
 
 class Bot(Player):
-    def __init__(self):
-        super().__init__()
-
-    def start(self):
+    def __init__(self, player):
+        super(Bot, self).__init__(player)
+        
+    def run(self):
         print ("starting Bot ..." + self.player.name)
+        
+    
+        
 
 class PlayerFactory(object):
     def __init__(self, numPlayers, baseName):
