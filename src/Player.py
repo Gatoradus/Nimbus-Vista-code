@@ -95,17 +95,23 @@ class PlayerMapper(PlayerThread):
         group = socket.inet_aton(self.player.multicast_group)
         mreq = struct.pack('4sL', group, socket.INADDR_ANY)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        while True:
-            print ("PlayerMapper is running..." + self.player.name)
-            print ('\nwaiting to receive message')
-            data, address = sock.recvfrom(1024)
+        if self.player.receiver:
+            while True:
+                print ("PlayerMapper is running..." + self.player.name)
+                print ('\nwaiting to receive message')
+                data, address = sock.recvfrom(1024)
+                 
+                print ('received %s bytes from %s' % (len(data), address))
+                print (data)
              
-            print ('received %s bytes from %s' % (len(data), address))
-            print (data)
-         
-            print ('sending acknowledgement to', address)
-            sock.sendto(bytes('ack','UTF-8'), address)
-            time.sleep(self.napTime*3)
+                print ('sending acknowledgement to', address)
+                sock.sendto(bytes('ack','UTF-8'), address)
+                time.sleep(self.napTime*3)
+        else:
+            while True:
+                print ("PlayerMapper is running..." + self.player.name)
+                print ('\nActually every Player should be a receiver, brain thread is supposed to send...')
+                time.sleep(self.napTime*3)
             
 class FirstAide(PlayerThread):
     def __init__(self, player):
