@@ -123,8 +123,14 @@ class PostOffice(PlayerThread):
             data, address = self.receiverSock.recvfrom(1024)
         
             print ('received %s bytes from %s' % (len(data), address))
-            print (data)
-    
+            
+            data = data.decode('utf-8')
+            print ('Raw data:' + data)
+            messageDict = json.loads(data)
+            
+            for key,val in messageDict.items():
+                print("KEY: " + key + ", VAL: " + str(val))
+                
             print ('sending acknowledgement to', address)
             self.receiverSock.sendto(bytes('ack','UTF-8'), address)
 
