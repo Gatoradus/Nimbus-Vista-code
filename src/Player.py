@@ -82,7 +82,10 @@ class Brain(PlayerThread):
                 message['subject'] = "L" # 'L' is for location messages
                 message['playerID'] = self.player.id
                 messageString = json.dumps(message)
+                print ("Trying to send my location...")
                 self.player.POThread.sendMessage(messageString)
+                print ("Returned from 'self.player.POThread.sendMessage(messageString)'")
+                
              
             time.sleep(self.napTime)
             
@@ -159,8 +162,9 @@ class PostOffice(PlayerThread):
 
     def run(self):
         print ("starting PostOffice..." + self.player.name)
-        if self.player.receiver:
-            self.listen()
+        while True:
+            if self.player.receiver:
+                self.listen()
         
 
 class PlayerMapper(PlayerThread):
@@ -168,7 +172,9 @@ class PlayerMapper(PlayerThread):
         super(PlayerMapper, self).__init__(player)
 
     def run(self):
-        print ("starting PlayerMapper..." + self.player.name)
+        while True:
+            print ("PlayerMapper.run()" + self.player.name)
+            time.sleep(self.napTime)
 #         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 #         #Bind to the server address
 #         sock.bind(self.player.server_address)
