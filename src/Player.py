@@ -5,6 +5,8 @@ import json
 import socket
 import struct
 import sys
+import datetime
+import queue
 
 class Player(object):
     def __init__(self,pd=dict()):
@@ -22,6 +24,10 @@ class Player(object):
         self.lastx = self.x
         self.lasty = self.y
         self.lastz = self.z
+        self.outboxLock = threading.Lock()
+        self.inboxLock = threading.Lock()
+        self.inboxq = queue.Queue(10)
+        self.outboxq = queue.Queue(10)
            
         self.outbox = []
         self.inbox = []
@@ -34,6 +40,11 @@ class Player(object):
 
     def start(self):
         print ("starting Player...")
+        
+    def messageStamp(self):
+        currentThread = threading.current_thread()
+        threadName = currentThread.getName()
+        return '{}{}'.format(threadName,datetime.datetime.now())
 
     def fromJSON(self):
         p = Player()
@@ -70,6 +81,8 @@ class Brain(PlayerThread):
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
+            print("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
+            print("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
             # This will generate the "threads can only be started once" error if the message
             # goes out more than once.
             if not self.player.PMThread.isAlive():
@@ -79,7 +92,7 @@ class Brain(PlayerThread):
                     self.player.POThread.start()
                     
             #print ("Brain is running..." + self.player.name)
-            self.player.x+=1
+            self.player.x=self.player.x+1
             if self.player.hasMoved():            
                 if self.player.sender:
                     message = dict()
@@ -90,15 +103,18 @@ class Brain(PlayerThread):
                     message['playerID'] = self.player.id
                     
                     self.player.outbox.append(message)
-                    
+                    self.player.outboxLock.acquire()
+                    self.player.outboxq.put(message)
+                    self.player.outboxLock.release()
                     
                 
-            time.sleep(self.napTime)
+            time.sleep(self.napTime*10)
         
 class PostOffice(PlayerThread):
     def __init__(self, player):
         self.senderSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.senderSock.settimeout(20)
+        self.senderSock.settimeout(2)
+        #self.senderSock.setblocking()
         # Set the time-to-live for messages to 1 so they do not go past the
         # local network segment.
         ttl = struct.pack('b', 1)
@@ -122,8 +138,7 @@ class PostOffice(PlayerThread):
 # Receive/respond loop
 
     def listen(self):
-        currentThread = threading.current_thread()
-        threadName = currentThread.getName()
+        threadName = self.player.messageStamp()
         print (threadName + ':waiting to receive message')
         data, address = self.receiverSock.recvfrom(1024)
     
@@ -140,14 +155,19 @@ class PostOffice(PlayerThread):
         self.receiverSock.sendto(bytes('ack','UTF-8'), address)
         print (threadName + ':Adding message to inbox' )
         self.player.inbox.append(messageDict)
+        self.player.inboxLock.acquire()
+        self.player.inboxq.put(messageDict)
+        self.player.inboxLock.release()
         print (threadName + ":Returning from 'listen(self,threadName)'")
 
 
-    def processMail(self):
-        currentThread = threading.current_thread()
-        threadName = currentThread.getName()
-        if len(self.player.outbox) > 0:
-            message = self.player.outbox.pop()
+    def sendStatus(self):
+        threadName = self.player.messageStamp()
+        self.player.outboxLock.acquire()       
+        
+        if not self.player.outboxq.empty():            
+            message = self.player.outboxq.get()
+            self.player.outboxLock.release()
             messageString = json.dumps(message)
             print (threadName + ":Trying to send my location...")       
             
@@ -164,7 +184,7 @@ class PostOffice(PlayerThread):
                     try:
                         data, server = self.senderSock.recvfrom(16)
                     except socket.timeout:
-                        self.player.outbox.append(message)
+                        #self.player.outbox.append(message)
                         print ('timed out, no more responses')
                         break
                     else:
@@ -172,18 +192,20 @@ class PostOffice(PlayerThread):
                         print ('received "%s" from %s' % (data,server))
     
             finally:
-                print (threadName + ':closing socket')
-                self.senderSock.close()   
+                pass
+                print (threadName + ':Executing finally clause.')
+                #self.senderSock.close()   
             
-            print (threadName + ":Returning from 'processMail(self,threadName)'")
-
+            print (threadName + ":Returning from 'sendStatus(self,threadName)'")
+        else:
+            self.player.outboxLock.release()
 
     def run(self):
         print ("starting PostOffice..." + self.player.name)
         while True:
             if self.player.receiver:
                 self.listen()
-            self.processMail()
+            self.sendStatus()
         
 
 class PlayerMapper(PlayerThread):
