@@ -18,14 +18,22 @@ class Player(object):
             self.height = 72
             self.weight = 200
             self.name = "UNNAMED"
+        
+        self.lastx = self.x
+        self.lasty = self.y
+        self.lastz = self.z
+           
+        self.outbox = []
+        self.inbox = []
         self.brainThread = Brain(self)
         self.PMThread = PlayerMapper(self)
         self.POThread = PostOffice(self)
+        self.brainThread.setName("{}[{}]".format(self.id,"brain"))
+        self.POThread.setName("{}[{}]".format(self.id,"post_office"))
         self.threadPool = [self.brainThread,self.PMThread,self.POThread]
 
     def start(self):
         print ("starting Player...")
-        
 
     def fromJSON(self):
         p = Player()
@@ -34,9 +42,12 @@ class Player(object):
         #p.__dict__ = self
         return p
     
-    
-
-    
+    def hasMoved(self):
+        if (self.lastx != self.x or
+            self.lasty != self.y or
+            self.lastz != self.z):
+            return True
+        return False
 
 class PlayerThread(threading.Thread):
     """PlayerThread: superclass of all threads used by Player."""
@@ -49,14 +60,8 @@ class PlayerThread(threading.Thread):
         self.napTime = player.napTime
         
     
-    def runTasks(self):
-        """runTasks: overload in subclasses to carry out needed tasks."""
-        raise NotImplementedError("Must override runTasks")
-
+   
     
-
-    
-
 class Brain(PlayerThread):
     def __init__(self, player):
         
@@ -73,26 +78,22 @@ class Brain(PlayerThread):
             if not self.player.POThread.isAlive():
                     self.player.POThread.start()
                     
-            print ("Brain is running..." + self.player.name)
-            if self.player.sender:
-                message = dict()
-                message['x'] = self.player.x
-                message['y'] = self.player.y
-                message['z'] = self.player.z
-                message['subject'] = "L" # 'L' is for location messages
-                message['playerID'] = self.player.id
-                messageString = json.dumps(message)
-                print ("Trying to send my location...")
-                self.player.POThread.sendMessage(messageString)
-                print ("Returned from 'self.player.POThread.sendMessage(messageString)'")
+            #print ("Brain is running..." + self.player.name)
+            self.player.x+=1
+            if self.player.hasMoved():            
+                if self.player.sender:
+                    message = dict()
+                    message['x'] = self.player.x
+                    message['y'] = self.player.y
+                    message['z'] = self.player.z
+                    message['subject'] = "L" # 'L' is for location messages
+                    message['playerID'] = self.player.id
+                    
+                    self.player.outbox.append(message)
+                    
+                    
                 
-             
             time.sleep(self.napTime)
-            
-         
-    #def runTasks(self):
-    #    """runTasks: overload in subclasses to carry out needed tasks."""
-    #    print("This is runTasks() in the Brain thread!!")
         
 class PostOffice(PlayerThread):
     def __init__(self, player):
@@ -121,50 +122,68 @@ class PostOffice(PlayerThread):
 # Receive/respond loop
 
     def listen(self):
-        while True:
-            print ('\nwaiting to receive message')
-            data, address = self.receiverSock.recvfrom(1024)
+        currentThread = threading.current_thread()
+        threadName = currentThread.getName()
+        print (threadName + ':waiting to receive message')
+        data, address = self.receiverSock.recvfrom(1024)
+    
+        print (threadName + ':received %s bytes from %s' % (len(data), address))
         
-            print ('received %s bytes from %s' % (len(data), address))
+        data = data.decode('utf-8')
+        print ('Raw data:' + data)
+        messageDict = json.loads(data)
+        
+        for key,val in messageDict.items():
+            print(threadName + "\t:KEY: " + key + ", VAL: " + str(val))
             
-            data = data.decode('utf-8')
-            print ('Raw data:' + data)
-            messageDict = json.loads(data)
+        print (threadName + ':sending acknowledgement to', address)
+        self.receiverSock.sendto(bytes('ack','UTF-8'), address)
+        print (threadName + ':Adding message to inbox' )
+        self.player.inbox.append(messageDict)
+        print (threadName + ":Returning from 'listen(self,threadName)'")
+
+
+    def processMail(self):
+        currentThread = threading.current_thread()
+        threadName = currentThread.getName()
+        if len(self.player.outbox) > 0:
+            message = self.player.outbox.pop()
+            messageString = json.dumps(message)
+            print (threadName + ":Trying to send my location...")       
             
-            for key,val in messageDict.items():
-                print("KEY: " + key + ", VAL: " + str(val))
+            
+            
+            try:
+                # Send data to the multicast group
+                print (threadName + ':sending "%s"' % messageString)
+                sent = self.senderSock.sendto(bytes(messageString,'UTF-8'), self.player.multicast_group)
                 
-            print ('sending acknowledgement to', address)
-            self.receiverSock.sendto(bytes('ack','UTF-8'), address)
-
-
-
-    def sendMessage(self, message):
-        try:
-            # Send data to the multicast group
-            print ('sending "%s"' % message)
-            sent = self.senderSock.sendto(bytes(message,'UTF-8'), self.player.multicast_group)
+                # Look for responses from all recipients
+                while True:
+                    print ('waiting to receive')
+                    try:
+                        data, server = self.senderSock.recvfrom(16)
+                    except socket.timeout:
+                        self.player.outbox.append(message)
+                        print ('timed out, no more responses')
+                        break
+                    else:
+                        
+                        print ('received "%s" from %s' % (data,server))
+    
+            finally:
+                print (threadName + ':closing socket')
+                self.senderSock.close()   
             
-            # Look for responses from all recipients
-            while True:
-                print ('waiting to receive')
-                try:
-                    data, server = self.senderSock.recvfrom(16)
-                except socket.timeout:
-                    print ('timed out, no more responses')
-                    break
-                else:
-                    print ('received "%s" from %s' % (data,server))
+            print (threadName + ":Returning from 'processMail(self,threadName)'")
 
-        finally:
-            print ('closing socket')
-            self.senderSock.close()   
 
     def run(self):
         print ("starting PostOffice..." + self.player.name)
         while True:
             if self.player.receiver:
                 self.listen()
+            self.processMail()
         
 
 class PlayerMapper(PlayerThread):
@@ -173,35 +192,9 @@ class PlayerMapper(PlayerThread):
 
     def run(self):
         while True:
-            print ("PlayerMapper.run()" + self.player.name)
+            #print ("PlayerMapper.run()" + self.player.name)
             time.sleep(self.napTime)
-#         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#         #Bind to the server address
-#         sock.bind(self.player.server_address)
-#         print(self.player.server_address)
-#         #sock.bind(('', 10000))
-#         #Tell the operating system to add the socket to the multicast group
-#         #on all interfaces.
-#         group = socket.inet_aton(self.player.multicast_group)
-#         mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-#         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-#         if self.player.receiver:
-#             while True:
-#                 print ("PlayerMapper is running..." + self.player.name)
-#                 print ('\nwaiting to receive message')
-#                 data, address = sock.recvfrom(1024)
-#                  
-#                 print ('received %s bytes from %s' % (len(data), address))
-#                 print (data)
-#              
-#                 print ('sending acknowledgement to', address)
-#                 sock.sendto(bytes('ack','UTF-8'), address)
-#                 time.sleep(self.napTime*3)
-#         else:
-#             while True:
-#                 print ("PlayerMapper is running..." + self.player.name)
-#                 print ('\nActually every Player should be a receiver, brain thread is supposed to send...')
-#                 time.sleep(self.napTime*3)
+
             
 class FirstAide(PlayerThread):
     def __init__(self, player):
