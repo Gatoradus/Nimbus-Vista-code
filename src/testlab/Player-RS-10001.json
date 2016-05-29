@@ -1,7 +1,7 @@
 {
 	"multicast_group_ip": "224.3.29.71",
 	"name": "Player-R",
-	"id": "PR-1",
+	"id": "10001",
 	"x": 10,
 	"weight": 200,
 	"napTime": 1,
@@ -13,6 +13,7 @@
 	"height": 72,
 	"y": 5,
 	"receiver":true,
-	"sender":false,
-	"sender_port": 10000
+	"sender":true,
+	"sender_port": 10000,
+	"sendingDelay": 3
 }

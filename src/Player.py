@@ -35,8 +35,8 @@ class Player(object):
         self.brainThread = Brain(self)
         self.PMThread = PlayerMapper(self)
         self.POThread = PostOffice(self)
-        self.brainThread.setName("{}[{}]".format(self.id,"brain"))
-        self.POThread.setName("{}[{}]".format(self.id,"post_office"))
+        self.brainThread.setName("{}[{}]".format(self.id,"BR"))
+        self.POThread.setName("{}[{}]".format(self.id,"PO"))
         self.threadPool = [self.brainThread,self.PMThread,self.POThread]
 
     def start(self):
@@ -45,7 +45,10 @@ class Player(object):
     def messageStamp(self):
         currentThread = threading.current_thread()
         threadName = currentThread.getName()
-        return '{}{}'.format(threadName,datetime.datetime.now())
+        return '{}{}:'.format(threadName,datetime.datetime.now())
+    
+    def stmpPrint(self,*s):
+        print(self.messageStamp()+str(s))
 
     def fromJSON(self):
         p = Player()
@@ -82,8 +85,8 @@ class Brain(PlayerThread):
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
-            print("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
-            print("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
+            self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
+            self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
             # This will generate the "threads can only be started once" error if the message
             # goes out more than once.
             if not self.player.PMThread.isAlive():
@@ -113,6 +116,7 @@ class Brain(PlayerThread):
         
 class PostOffice(PlayerThread):
     def __init__(self, player):
+        self.loopCount = 0
         self.senderSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.senderSock.settimeout(2)
         #self.senderSock.setblocking()
@@ -124,9 +128,9 @@ class PostOffice(PlayerThread):
         super(PostOffice, self).__init__(player)
         
         if self.player.receiver:
-
+            
             self.receiverSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
+            self.receiverSock.settimeout(1)
     # Bind to the server address
             self.receiverSock.bind(self.player.server_address)
     
@@ -139,74 +143,91 @@ class PostOffice(PlayerThread):
 # Receive/respond loop
 
     def listen(self):
-        threadName = self.player.messageStamp()
-        print (threadName + ':waiting to receive message')
-        data, address = self.receiverSock.recvfrom(1024)
-    
-        print (threadName + ':received %s bytes from %s' % (len(data), address))
         
-        data = data.decode('utf-8')
-        print ('Raw data:' + data)
-        messageDict = json.loads(data)
-        
-        for key,val in messageDict.items():
-            print(threadName + "\t:KEY: " + key + ", VAL: " + str(val))
+        self.player.stmpPrint ('listen():waiting to receive message')
+        #(data, address) = ('','')
+        try:
+            data, address = self.receiverSock.recvfrom(1024)
+        except socket.timeout:
+            #self.player.outbox.append(message)
+            self.player.stmpPrint ('timed out, no more responses')
             
-        print (threadName + ':sending acknowledgement to', address)
-        self.receiverSock.sendto(bytes('ack','UTF-8'), address)
-        print (threadName + ':Adding message to inbox' )
-        self.player.inbox.append(messageDict)
-        self.player.inboxLock.acquire()
-        self.player.inboxq.put(messageDict)
-        self.player.inboxLock.release()
-        print (threadName + ":Returning from 'listen(self,threadName)'")
+        else:
+            self.player.stmpPrint ('received "%s" from %s' % (data,address))
+            self.player.stmpPrint (':received %s bytes from %s' % (len(data), address))
+            
+            data = data.decode('utf-8')
+            self.player.stmpPrint ('Raw data:' + data)
+            messageDict = json.loads(data)
+            
+            for key,val in messageDict.items():
+                self.player.stmpPrint("\t:KEY: " + key + ", VAL: " + str(val))
+                
+            self.player.stmpPrint (':sending acknowledgement to', address)
+            self.receiverSock.sendto(bytes('ack','UTF-8'), address)
+            self.player.stmpPrint (':Adding message to inbox' )
+            self.player.inbox.append(messageDict)
+            self.player.inboxLock.acquire()
+            self.player.inboxq.put(messageDict)
+            self.player.inboxLock.release()
+        
+        
+        
+    
+        
+        self.player.stmpPrint (":Returning from 'listen(self,threadName)'")
 
 
     def sendStatus(self):
-        threadName = self.player.messageStamp()
+        
         self.player.outboxLock.acquire()       
         
         if not self.player.outboxq.empty():            
             message = self.player.outboxq.get()
             self.player.outboxLock.release()
             messageString = json.dumps(message)
-            print (threadName + ":Trying to send my location...")       
+            self.player.stmpPrint (":Trying to send my location...")       
             
             
             
             try:
                 # Send data to the multicast group
-                print (threadName + ':sending "%s"' % messageString)
+                self.player.stmpPrint (':sending "%s"' % messageString)
                 sent = self.senderSock.sendto(bytes(messageString,'UTF-8'), self.player.multicast_group)
                 
                 # Look for responses from all recipients
                 while True:
-                    print ('waiting to receive')
+                    self.player.stmpPrint ('waiting to receive')
                     try:
                         data, server = self.senderSock.recvfrom(16)
                     except socket.timeout:
                         #self.player.outbox.append(message)
-                        print ('timed out, no more responses')
+                        self.player.stmpPrint ('timed out, no more responses')
                         break
                     else:
                         
-                        print ('received "%s" from %s' % (data,server))
+                        self.player.stmpPrint ('received "%s" from %s' % (data,server))
     
             finally:
                 pass
-                print (threadName + ':Executing finally clause.')
+                self.player.stmpPrint (':Executing finally clause.')
                 #self.senderSock.close()   
             
-            print (threadName + ":Returning from 'sendStatus(self,threadName)'")
+            self.player.stmpPrint (":Returning from 'sendStatus(self,threadName)'")
         else:
             self.player.outboxLock.release()
 
     def run(self):
-        print ("starting PostOffice..." + self.player.name)
+        self.player.stmpPrint ("starting PostOffice..." + self.player.name)
         while True:
+            self.player.stmpPrint("LOOP COUNT:" + str(self.loopCount))
             if self.player.receiver:
                 self.listen()
-            self.sendStatus()
+            if self.loopCount >= self.player.sendingDelay:
+                self.player.stmpPrint("\n\nStarting to SEND!!!!!\n\n")
+                self.sendStatus()
+            self.loopCount+=1
+            time.sleep(self.napTime)
         
 
 class PlayerMapper(PlayerThread):
