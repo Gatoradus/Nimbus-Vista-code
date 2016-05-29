@@ -1,5 +1,44 @@
 #!/usr/bin/env python3
 
 
-from tkinter import *
+from tkinter import Tk, Label, Button, Canvas
+import time
 
+class MyFirstGUI:
+    def __init__(self, master):
+        self.master = master
+        self.x = 50
+        self.y = 40
+        master.title("A simple GUI")
+
+        self.label = Label(master, text="This is our first GUI!")
+        self.label.pack()
+
+        self.greet_button = Button(master, text="Greet", command=self.greet)
+        self.greet_button.pack()
+
+        self.close_button = Button(master, text="Close", command=master.quit)
+        self.close_button.pack()
+        w = Canvas(master, width=200, height=100)
+        w.pack()
+
+        w.create_line(0, 0, 200, 100)
+        w.create_line(0, 100, 200, 0, fill="red", dash=(4, 4))
+
+        #w.create_rectangle(50, 25, 150, 75, fill="blue") 
+        self.w = w   
+        self.master.after(0,self.moveDot)
+
+    def greet(self):
+        print("Greetings!")
+        
+    def moveDot(self):
+        self.w.create_rectangle(0,0, 200,100 ,fill="black")
+        time.sleep(0.1)
+        self.w.create_rectangle(self.x, self.y, self.x+10, self.y+10, fill="blue")
+        self.x+=1
+        self.master.after(1,self.moveDot)
+
+root = Tk()
+my_gui = MyFirstGUI(root)
+root.mainloop()
