@@ -1,18 +1,18 @@
 {
 	"multicast_group_ip": "224.3.29.71",
-	"name": "Player-S",
-	"id": "PS-1",
-	"x": 50,
+	"name": "Player-R",
+	"id": "PR-1",
+	"x": 10,
 	"weight": 200,
 	"napTime": 1,
-	"z": 0.5,
+	"z": 1,
 	"server_address": [
 		"",
 		10000
 	],
 	"height": 72,
-	"y": 70,
+	"y": 5,
 	"receiver":false,
 	"sender":true,
-	"sender_port": 10000
+	"sender_port": 10001
 }

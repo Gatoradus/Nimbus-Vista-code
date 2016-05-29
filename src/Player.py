@@ -12,7 +12,8 @@ class Player(object):
     def __init__(self,pd=dict()):
         if pd:
             self.__dict__ = pd
-            self.multicast_group = (self.multicast_group_ip, self.server_address[1])
+            #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
+            self.multicast_group = (self.multicast_group_ip, self.sender_port)
         else:
             self.x = 0
             self.y = 0
