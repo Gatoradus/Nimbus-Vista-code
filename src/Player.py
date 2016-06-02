@@ -9,11 +9,36 @@ import datetime
 import queue
 
 class Player(object):
-    def __init__(self,pd=dict()):
+    def __init__(self,pd=dict(),fname=None):
         if pd:
             self.__dict__ = pd
             #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
             self.multicast_group = (self.multicast_group_ip, self.sender_port)
+        elif fname is not None:
+            print ("fname found:" + fname)
+            fp = open(fname,'r') 
+            dictStr = fp.read()   
+            
+            print ("fname found")      
+               
+            configDict = json.loads(dictStr)        
+            server_address = (configDict["server_address"][0],configDict["server_address"][1])        
+            configDict["server_address"] = server_address
+            self.__dict__ = configDict
+            print ("fname found:" + self.multicast_group_ip,)
+            
+            #print ("dictStr:" + dictStr)
+            
+    
+            
+    #multicast_group = configDict["multicast_group"]
+            
+    #napTime = configDict["napTime"]
+            
+            fp.close()
+            
+            self.multicast_group = (self.multicast_group_ip, self.sender_port)
+                     
         else:
             self.x = 0
             self.y = 0
@@ -115,7 +140,8 @@ class Brain(PlayerThread):
             time.sleep(self.napTime*10)
         
 class PostOffice(PlayerThread):
-    def __init__(self, player):
+    
+    def bindSockets(self):
         self.loopCount = 0
         self.senderSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.senderSock.settimeout(2)
@@ -124,9 +150,6 @@ class PostOffice(PlayerThread):
         # local network segment.
         ttl = struct.pack('b', 1)
         self.senderSock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-
-        super(PostOffice, self).__init__(player)
-        
         if self.player.receiver:
             
             self.receiverSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -140,6 +163,10 @@ class PostOffice(PlayerThread):
             self.mreq = struct.pack('4sL', self.group, socket.INADDR_ANY)
             self.receiverSock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, self.mreq)
 
+    
+    
+    def __init__(self, player):
+        super(PostOffice, self).__init__(player)
 # Receive/respond loop
 
     def listen(self):
@@ -219,6 +246,7 @@ class PostOffice(PlayerThread):
 
     def run(self):
         self.player.stmpPrint ("starting PostOffice..." + self.player.name)
+        self.bindSockets()
         while True:
             self.player.stmpPrint("LOOP COUNT:" + str(self.loopCount))
             if self.player.receiver:

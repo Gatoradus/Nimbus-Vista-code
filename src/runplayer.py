@@ -6,7 +6,7 @@ from Player import *
 
 def main(argv):
     inputfile = ''
-    outputdir = ''
+    #outputdir = ''
     try:
         (opts, args) = getopt.getopt(sys.argv[1:], "hi:", ["ifile="])
         #

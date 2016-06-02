@@ -5,6 +5,7 @@ from tkinter import Tk, Label, Button, Canvas, W, E, N, S, Frame
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import showerror
 import time
+from Player import  *
 
 class FITSGUI(Frame):
     def __init__(self, master):
@@ -57,12 +58,20 @@ class FITSGUI(Frame):
                                            ("HTML files", "*.html;*.htm"),
                                            ("All files", "*.*") ))
         if fname:
-            try:
-                print("""Loading Player: self.settings["template"].set(fname)""")
-            except:                     # <- naked except is a bad idea
-                showerror("Open Source File", "Failed to read file\n'%s'" % fname)
-            return
+            p = Player(fname=fname)
+            #p.bindSockets()
+            p.brainThread.start()
+            
+#            try:
+#                print("""Loading Player: self.settings["template"].set(fname)""")
+#                #fp = open(fname,'r')#  
+#                p = Player(fname=fname)
+#                print (str(p))
+#            except:                     # <- naked except is a bad idea
+#                showerror("Open Player File", "Failed to read file\n'%s'" % fname)
+#            return
 
 root = Tk()
+root.quit = root.destroy
 fitsGui = FITSGUI(root)
 root.mainloop()
