@@ -7,13 +7,15 @@ import struct
 import sys
 import datetime
 import queue
+import random
 
 class Player(object):
     def __init__(self,pd=dict(),fname=None):
         if pd:
             self.__dict__ = pd
             #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
-            self.multicast_group = (self.multicast_group_ip, self.sender_port)
+            if hasattr(self, 'multicast_group_ip') and hasattr('self,sender_port'):
+                self.multicast_group = (self.multicast_group_ip, self.sender_port)
         elif fname is not None:
             print ("fname found:" + fname)
             fp = open(fname,'r') 
@@ -46,12 +48,14 @@ class Player(object):
             self.height = 72
             self.weight = 200
             self.name = "UNNAMED"
+            self.id = 0
         
         self.lastx = self.x
         self.lasty = self.y
         self.lastz = self.z
         self.outboxLock = threading.Lock()
         self.inboxLock = threading.Lock()
+        self.playerMap = dict()
         self.inboxq = queue.Queue(10)
         self.outboxq = queue.Queue(10)
            
@@ -97,7 +101,10 @@ class PlayerThread(threading.Thread):
     def __init__(self, player):
         super(PlayerThread, self).__init__()
         self.player = player
-        self.napTime = player.napTime
+        if hasattr(player,'napTime'):
+            self.napTime = player.napTime
+        else:
+            self.napTime = 1 #FIXME
         
     
    
@@ -110,7 +117,19 @@ class Brain(PlayerThread):
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
-            self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
+            
+            if self.player.inboxq.qsize() > 0:
+                self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
+                # assume for now that this message is a player's location.
+                locDict = self.player.inboxq.get()
+                self.player.stmpPrint('INBOX:' + str(locDict))
+                p = Player(pd=locDict)
+                if 'id' in locDict:
+                    self.player.playerMap[locDict['id']] = p
+                    
+                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
+                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
+                
             self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
             # This will generate the "threads can only be started once" error if the message
             # goes out more than once.
@@ -121,7 +140,11 @@ class Brain(PlayerThread):
                     self.player.POThread.start()
                     
             #print ("Brain is running..." + self.player.name)
-            self.player.x=self.player.x+1
+            
+            xr = random.randint(-2,2)
+            yr = random.randint(-2,2)
+            self.player.x=self.player.x+xr
+            self.player.y=self.player.y+yr
             if self.player.hasMoved():            
                 if self.player.sender:
                     message = dict()
@@ -129,7 +152,7 @@ class Brain(PlayerThread):
                     message['y'] = self.player.y
                     message['z'] = self.player.z
                     message['subject'] = "L" # 'L' is for location messages
-                    message['playerID'] = self.player.id
+                    message['id'] = self.player.id
                     
                     self.player.outbox.append(message)
                     self.player.outboxLock.acquire()

@@ -4,7 +4,7 @@
 	"id": "10000",
 	"x": 10,
 	"weight": 200,
-	"napTime": 1,
+	"napTime": 0.1,
 	"z": 1,
 	"server_address": [
 		"",

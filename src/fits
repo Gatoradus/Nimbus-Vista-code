@@ -13,6 +13,7 @@ class FITSGUI(Frame):
         self.master = master
         self.x = 50
         self.y = 40
+        self.player = Player()
         #master.title("A simple GUI")
 
         self.master.title("FiTS Control Console")
@@ -48,7 +49,13 @@ class FITSGUI(Frame):
     def moveDot(self):
         self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         time.sleep(0.1)
-        self.w.create_rectangle(self.x, self.y, self.x+10, self.y+10, fill="blue")
+        print ("FITS:" + str(self.player.playerMap))
+        
+        if '10000' in self.player.playerMap:
+            #self.w.create_rectangle(0,0, 680,600 ,fill="grey")
+            playerX = self.player.playerMap['10000'].x*5
+            playerY = self.player.playerMap['10000'].y*5
+            self.w.create_rectangle(playerX, playerY, playerX+10, playerY+10, fill="blue")
         self.x+=1
         self.master.after(1,self.moveDot)
         
@@ -58,9 +65,9 @@ class FITSGUI(Frame):
                                            ("HTML files", "*.html;*.htm"),
                                            ("All files", "*.*") ))
         if fname:
-            p = Player(fname=fname)
-            #p.bindSockets()
-            p.brainThread.start()
+            self.player = Player(fname=fname)
+            
+            self.player.brainThread.start()
             
 #            try:
 #                print("""Loading Player: self.settings["template"].set(fname)""")
