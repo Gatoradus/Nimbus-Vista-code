@@ -4,13 +4,18 @@ import json
 #from asyncio.windows_events import NULL
 import socket
 import struct
-import sys
+#import sys
 import datetime
 import queue
 import random
+import logging
+#logging.basicConfig(filename='example.log',level=logging.DEBUG)
+#logging.debug('This message should go to the log file')
+#logging.info('So should this')
+#logging.warning('And this, too')
 
 class Player(object):
-    def __init__(self,pd=dict(),fname=None):
+    def __init__(self,pd=dict(),fname=None,mapped=False):
         if pd:
             self.__dict__ = pd
             #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
@@ -24,19 +29,12 @@ class Player(object):
             print ("fname found")      
                
             configDict = json.loads(dictStr)        
-            server_address = (configDict["server_address"][0],configDict["server_address"][1])        
+            #server_address = (configDict["server_address"][0],configDict["server_address"][1])
+            server_address = (configDict["multicast_group_ip"],configDict["server_address"][1])        
             configDict["server_address"] = server_address
             self.__dict__ = configDict
             print ("fname found:" + self.multicast_group_ip,)
-            
-            #print ("dictStr:" + dictStr)
-            
-    
-            
-    #multicast_group = configDict["multicast_group"]
-            
-    #napTime = configDict["napTime"]
-            
+            print ('configDict["server_address"]' + str(configDict["server_address"] ))
             fp.close()
             
             self.multicast_group = (self.multicast_group_ip, self.sender_port)
@@ -49,24 +47,35 @@ class Player(object):
             self.weight = 200
             self.name = "UNNAMED"
             self.id = 0
-        
+        self.uniqueMessageNumber = 0
         self.lastx = self.x
         self.lasty = self.y
         self.lastz = self.z
         self.outboxLock = threading.Lock()
         self.inboxLock = threading.Lock()
         self.playerMap = dict()
-        self.inboxq = queue.Queue(10)
-        self.outboxq = queue.Queue(10)
+        self.inboxq = queue.Queue(100)
+        self.outboxq = queue.Queue(100)
            
-        self.outbox = []
-        self.inbox = []
-        self.brainThread = Brain(self)
-        self.PMThread = PlayerMapper(self)
-        self.POThread = PostOffice(self)
-        self.brainThread.setName("{}[{}]".format(self.id,"BR"))
-        self.POThread.setName("{}[{}]".format(self.id,"PO"))
-        self.threadPool = [self.brainThread,self.PMThread,self.POThread]
+        #self.outbox = []
+        #self.inbox = []
+        if not mapped:
+            self.brainThread = Brain(self)
+            self.PMThread = PlayerMapper(self)
+            self.POThread = PostOffice(self)
+            self.brainThread.setName("{}[{}]".format(self.id,"BR"))
+            self.POThread.setName("{}[{}]".format(self.id,"PO"))
+            self.threadPool = [self.brainThread,self.PMThread,self.POThread]
+            self.longName = self.name + "-" + str(self.id)
+            self.logger = logging.getLogger(self.longName)
+            self.logger.setLevel(logging.DEBUG)
+            self.fh = logging.FileHandler(self.longName + '.log')
+            self.fh.setLevel(logging.DEBUG)
+            self.logger.addHandler(self.fh)
+            self.minX = 0
+            self.minY = 0
+            self.maxX = 600
+            self.maxY = 500
 
     def start(self):
         print ("starting Player...")
@@ -74,10 +83,16 @@ class Player(object):
     def messageStamp(self):
         currentThread = threading.current_thread()
         threadName = currentThread.getName()
-        return '{}{}:'.format(threadName,datetime.datetime.now())
+        messageNumber = self.uniqueMessageNumber
+        self.uniqueMessageNumber += 1
+        return '{}:{}:{}:'.format(threadName,str(messageNumber).zfill(6),datetime.datetime.now())
     
-    def stmpPrint(self,*s):
-        print(self.messageStamp()+str(s))
+    def stmpPrint(self,*args):
+        s = ""
+        for a in args:
+            s = s + str(a)
+        print(self.messageStamp()+s)
+        self.logger.info(self.messageStamp()+s)
 
     def fromJSON(self):
         p = Player()
@@ -104,7 +119,7 @@ class PlayerThread(threading.Thread):
         if hasattr(player,'napTime'):
             self.napTime = player.napTime
         else:
-            self.napTime = 1 #FIXME
+            self.napTime = 5 #FIXME
         
     
    
@@ -117,20 +132,19 @@ class Brain(PlayerThread):
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
-            
-            if self.player.inboxq.qsize() > 0:
-                self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outgoing messages.")
+            self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
+            if self.player.inboxq.qsize() > 0:                
                 # assume for now that this message is a player's location.
                 locDict = self.player.inboxq.get()
                 self.player.stmpPrint('INBOX:' + str(locDict))
-                p = Player(pd=locDict)
+                p = Player(pd=locDict,mapped=True)
                 if 'id' in locDict:
                     self.player.playerMap[locDict['id']] = p
                     
                     self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
                     self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
                 
-            self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
+            self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outbound messages.")
             # This will generate the "threads can only be started once" error if the message
             # goes out more than once.
             if not self.player.PMThread.isAlive():
@@ -143,8 +157,11 @@ class Brain(PlayerThread):
             
             xr = random.randint(-2,2)
             yr = random.randint(-2,2)
-            self.player.x=self.player.x+xr
-            self.player.y=self.player.y+yr
+            newX = self.player.x+xr
+            newY = self.player.y+yr
+            #if  not (newX > self.maxX or newY > self.maxY or newX < self.minX or newY < self.minY):
+            self.player.x=newX
+            self.player.y=newY
             if self.player.hasMoved():            
                 if self.player.sender:
                     message = dict()
@@ -154,12 +171,12 @@ class Brain(PlayerThread):
                     message['subject'] = "L" # 'L' is for location messages
                     message['id'] = self.player.id
                     
-                    self.player.outbox.append(message)
+                    #self.player.outbox.append(message)
                     self.player.outboxLock.acquire()
-                    self.player.outboxq.put(message)
+                    self.player.outboxq.put_nowait(message)
                     self.player.outboxLock.release()
                     
-                
+            #self.player.stmpPrint('NAPPING:',self.napTime*10)    
             time.sleep(self.napTime*10)
         
 class PostOffice(PlayerThread):
@@ -167,7 +184,11 @@ class PostOffice(PlayerThread):
     def bindSockets(self):
         self.loopCount = 0
         self.senderSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.senderSock.settimeout(2)
+        
+        # Might help with servers on PC.
+        #sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        
+        self.senderSock.settimeout(0.1)
         #self.senderSock.setblocking()
         # Set the time-to-live for messages to 1 so they do not go past the
         # local network segment.
@@ -176,7 +197,7 @@ class PostOffice(PlayerThread):
         if self.player.receiver:
             
             self.receiverSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.receiverSock.settimeout(1)
+            self.receiverSock.settimeout(0.1)
     # Bind to the server address
             self.receiverSock.bind(self.player.server_address)
     
@@ -216,9 +237,9 @@ class PostOffice(PlayerThread):
             self.player.stmpPrint (':sending acknowledgement to', address)
             self.receiverSock.sendto(bytes('ack','UTF-8'), address)
             self.player.stmpPrint (':Adding message to inbox' )
-            self.player.inbox.append(messageDict)
+            #self.player.inbox.append(messageDict)
             self.player.inboxLock.acquire()
-            self.player.inboxq.put(messageDict)
+            self.player.inboxq.put_nowait(messageDict)
             self.player.inboxLock.release()
         
         
@@ -275,9 +296,10 @@ class PostOffice(PlayerThread):
             if self.player.receiver:
                 self.listen()
             if self.loopCount >= self.player.sendingDelay:
-                self.player.stmpPrint("\n\nStarting to SEND!!!!!\n\n")
+                self.player.stmpPrint("Starting to SEND!!!!!\n\n")
                 self.sendStatus()
             self.loopCount+=1
+            #self.player.stmpPrint('NAPPING:',self.napTime)
             time.sleep(self.napTime)
         
 
@@ -288,6 +310,7 @@ class PlayerMapper(PlayerThread):
     def run(self):
         while True:
             #print ("PlayerMapper.run()" + self.player.name)
+            #self.player.stmpPrint('NAPPING:',self.napTime)
             time.sleep(self.napTime)
 
             
