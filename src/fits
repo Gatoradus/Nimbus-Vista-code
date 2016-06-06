@@ -11,11 +11,13 @@ class FITSGUI(Frame):
     def __init__(self, master):
         Frame.__init__(self)
         self.master = master
-        self.x = 50
-        self.y = 40
+        self.xscale = 5
+        self.yscale = 5
         self.player = Player()
+        self.fieldUpdateInterval = 1
         #master.title("A simple GUI")
-
+        self.players = {}
+        self.selectedPlayer = None
         self.master.title("FiTS Control Console")
         self.master.rowconfigure(5, weight=1)
         self.master.columnconfigure(5, weight=1)
@@ -36,28 +38,41 @@ class FITSGUI(Frame):
         w = Canvas(master, width=680, height=600)
         w.grid(row=2, column=0, sticky=W)
 
-        w.create_line(0, 0, 200, 100)
-        w.create_line(0, 100, 200, 0, fill="red", dash=(4, 4))
+        #w.create_line(0, 0, 200, 100)
+        #w.create_line(0, 100, 200, 0, fill="red", dash=(4, 4))
 
         #w.create_rectangle(50, 25, 150, 75, fill="blue") 
         self.w = w   
-        self.master.after(0,self.moveDot)
+        self.master.after(0,self.drawPlayers)
 
     def greet(self):
         print("Greetings!")
         
-    def moveDot(self):
+    def drawPlayers(self):
         self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         time.sleep(0.1)
-        #print ("FITS:" + str(self.player.playerMap))
         
-        if '10000' in self.player.playerMap:
-            #self.w.create_rectangle(0,0, 680,600 ,fill="grey")
-            playerX = self.player.playerMap['10000'].x*5
-            playerY = self.player.playerMap['10000'].y*5
-            self.w.create_rectangle(playerX, playerY, playerX+10, playerY+10, fill="blue")
-        self.x+=1
-        self.master.after(1,self.moveDot)
+        #print ("FITS:" + str(self.player.playerMap))
+        for pid, player in self.players.items():
+            self.w.create_rectangle(player.x*self.xscale, player.y*self.yscale,
+                                    (player.x+1)*self.xscale, (player.y+1)*self.yscale, fill="blue")
+        if self.selectedPlayer:
+            sp = self.players[self.selectedPlayer]
+            #self.w.create_rectangle(30,30,50,50, fill="black")
+            if sp.playerMap:
+                #self.w.create_rectangle(30,30,50,50, fill="black")
+                for pid, p10000 in sp.playerMap.items():
+                #if '10000' in sp.playerMap:
+                    #p10000 = sp.playerMap['10000']
+                    self.w.create_rectangle(p10000.x*self.xscale, p10000.y*self.yscale,(p10000.x+1)*self.xscale, (p10000.y+1)*self.yscale, fill="green")
+                    #                        (player.x+1)*self.xscale, (player.y+1)*self.yscale, fil
+                #for id, player in sp.playerMap:
+#                   #pass
+#                    #self.w.create_rectangle(player.x*self.xscale, player.y*self.yscale,
+                    #                        (player.x+1)*self.xscale, (player.y+1)*self.yscale, fill="yellow")
+#         
+         
+        self.master.after(self.fieldUpdateInterval, self.drawPlayers)
         
         
     def load_file(self):
@@ -65,9 +80,11 @@ class FITSGUI(Frame):
                                            ("HTML files", "*.html;*.htm"),
                                            ("All files", "*.*") ))
         if fname:
-            self.player = Player(fname=fname)
+            p = Player(fname=fname)
+            p.brainThread.start()
+            self.players[p.id] = p
+            self.selectedPlayer = p.id
             
-            self.player.brainThread.start()
             
 #            try:
 #                print("""Loading Player: self.settings["template"].set(fname)""")
