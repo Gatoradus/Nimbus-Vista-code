@@ -30,7 +30,9 @@ class Player(object):
                
             configDict = json.loads(dictStr)        
             #server_address = (configDict["server_address"][0],configDict["server_address"][1])
-            server_address = (configDict["multicast_group_ip"],configDict["server_address"][1])        
+            
+            #server_address = (configDict["multicast_group_ip"],configDict["server_address"][1])        
+            server_address = ('',configDict["server_address"][1])
             configDict["server_address"] = server_address
             self.__dict__ = configDict
             print ("fname found:" + self.multicast_group_ip,)
@@ -186,8 +188,8 @@ class PostOffice(PlayerThread):
         self.senderSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
         # Might help with servers on PC.
-        #sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        
+        self.senderSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.senderSock.settimeout(0.1)
         #self.senderSock.setblocking()
         # Set the time-to-live for messages to 1 so they do not go past the
@@ -199,6 +201,8 @@ class PostOffice(PlayerThread):
             self.receiverSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.receiverSock.settimeout(0.1)
     # Bind to the server address
+            self.senderSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+            self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             self.receiverSock.bind(self.player.server_address)
     
     # Tell the operating system to add the socket to the multicast group

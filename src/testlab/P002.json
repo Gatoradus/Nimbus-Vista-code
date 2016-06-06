@@ -1,19 +1,19 @@
 {
 	"multicast_group_ip": "224.3.29.71",
-	"name": "P000",
-	"id": "P000",
-	"x": 100,
+	"name": "P002",
+	"id": "P002",
+	"x": 75,
 	"weight": 200,
 	"napTime": 0.3,
 	"z": 1,
 	"server_address": [
 		"",
-		10000
+		10002
 	],
 	"height": 72,
-	"y": 50,
+	"y": 86,
 	"receiver":true,
 	"sender":true,
-	"sender_port": 10001,
+	"sender_port": 10000,
 	"sendingDelay": 3
 }

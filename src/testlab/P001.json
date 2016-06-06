@@ -1,8 +1,8 @@
 {
 	"multicast_group_ip": "224.3.29.71",
-	"name": "P000",
-	"id": "P000",
-	"x": 100,
+	"name": "P001",
+	"id": "P001",
+	"x": 110,
 	"weight": 200,
 	"napTime": 0.3,
 	"z": 1,
@@ -11,7 +11,7 @@
 		10000
 	],
 	"height": 72,
-	"y": 50,
+	"y": 60,
 	"receiver":true,
 	"sender":true,
 	"sender_port": 10001,
