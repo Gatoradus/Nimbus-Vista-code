@@ -31,6 +31,11 @@ class FITSGUI(Frame):
         self.yscale = 5
         self.player = Player()
         self.fieldUpdateInterval = 1
+        self.fieldX = 10
+        self.fieldY = 10
+        self.fieldW = 540
+        self.fieldH = 490
+       
         #master.title("A simple GUI")
         self.players = {}
         self.selectedPlayer = None
@@ -82,12 +87,22 @@ class FITSGUI(Frame):
         #w.create_rectangle(50, 25, 150, 75, fill="blue") 
         self.w = w   
         self.master.after(0,self.drawPlayers)
+        self.w.create_rectangle(0,0, 680,600 ,fill="grey")
 
     def greet(self):
         print("Greetings!")
         
+    def drawField(self):
+        self.w.create_line(self.fieldX, self.fieldY, self.fieldX, self.fieldY + self.fieldH,fill="blue")
+        self.w.create_line(self.fieldX + self.fieldW, self.fieldY, self.fieldX + self.fieldW, self.fieldY + self.fieldH,fill="blue")
+        self.w.create_line(self.fieldX, self.fieldY, self.fieldX + self.fieldW, self.fieldY,fill="blue")
+        self.w.create_line(self.fieldX, self.fieldY + self.fieldH, self.fieldX + self.fieldW, self.fieldY + self.fieldH,fill="blue")
+    
+     #   self.w.create_line(self.fieldX, self.fieldY, self.fieldX, self.fieldY + self.fieldW,fill="blue")
     def drawPlayers(self):
+        #self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         self.w.create_rectangle(0,0, 680,600 ,fill="grey")
+        self.drawField()
         time.sleep(0.1)
         
         #print ("FITS:" + str(self.player.playerMap))

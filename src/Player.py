@@ -74,10 +74,10 @@ class Player(object):
             self.fh = logging.FileHandler(self.longName + '.log')
             self.fh.setLevel(logging.DEBUG)
             self.logger.addHandler(self.fh)
-            self.minX = 0
-            self.minY = 0
-            self.maxX = 600
-            self.maxY = 500
+            self.minX = 2
+            self.minY = 2
+            self.maxX = 110
+            self.maxY = 100
 
     def start(self):
         print ("starting Player...")
@@ -134,17 +134,20 @@ class Brain(PlayerThread):
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
+            self.player.lastx = self.player.x
+            self.player.lasty = self.player.y
+            self.player.lastz = self.player.z
             self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
-            if self.player.inboxq.qsize() > 0:                
+            #if self.player.inboxq.qsize() > 0:                
                 # assume for now that this message is a player's location.
-                locDict = self.player.inboxq.get()
-                self.player.stmpPrint('INBOX:' + str(locDict))
-                p = Player(pd=locDict,mapped=True)
-                if 'id' in locDict:
-                    self.player.playerMap[locDict['id']] = p
+            #    locDict = self.player.inboxq.get()
+            #    self.player.stmpPrint('INBOX:' + str(locDict))
+            #    p = Player(pd=locDict,mapped=True)
+            #    if 'id' in locDict:
+            #        self.player.playerMap[locDict['id']] = p
                     
-                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
-                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
+            #        self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
+            #        self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
                 
             self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outbound messages.")
             # This will generate the "threads can only be started once" error if the message
@@ -159,11 +162,14 @@ class Brain(PlayerThread):
             
             xr = random.randint(-2,2)
             yr = random.randint(-2,2)
+            
             newX = self.player.x+xr
             newY = self.player.y+yr
-            #if  not (newX > self.maxX or newY > self.maxY or newX < self.minX or newY < self.minY):
-            self.player.x=newX
-            self.player.y=newY
+            if  not (newX > self.player.maxX or newY > self.player.maxY
+                      or newX < self.player.minX or newY < self.player.minY):
+                self.player.x=newX
+                self.player.y=newY
+                
             if self.player.hasMoved():            
                 if self.player.sender:
                     message = dict()
@@ -175,11 +181,15 @@ class Brain(PlayerThread):
                     
                     #self.player.outbox.append(message)
                     self.player.outboxLock.acquire()
+                    if self.player.outboxq.qsize() > 0:
+                        self.player.outboxq.get()
+                        #throw away the message on top so we don't let them pile up!
+                    
                     self.player.outboxq.put_nowait(message)
                     self.player.outboxLock.release()
                     
             #self.player.stmpPrint('NAPPING:',self.napTime*10)    
-            time.sleep(self.napTime*10)
+            time.sleep(self.napTime)
         
 class PostOffice(PlayerThread):
     
@@ -235,15 +245,24 @@ class PostOffice(PlayerThread):
             self.player.stmpPrint ('Raw data:' + data)
             messageDict = json.loads(data)
             
+            p = Player(pd=messageDict,mapped=True)
+            if 'id' in messageDict:
+                    self.player.playerMap[messageDict['id']] = p
+                    
+                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
+                    self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
+                
+            
+            
             for key,val in messageDict.items():
                 self.player.stmpPrint("\t:KEY: " + key + ", VAL: " + str(val))
                 
             self.player.stmpPrint (':sending acknowledgement to', address)
             self.receiverSock.sendto(bytes('ack','UTF-8'), address)
-            self.player.stmpPrint (':Adding message to inbox' )
+            #self.player.stmpPrint (':Adding message to inbox' )
             #self.player.inbox.append(messageDict)
             self.player.inboxLock.acquire()
-            self.player.inboxq.put_nowait(messageDict)
+            #self.player.inboxq.put_nowait(messageDict)
             self.player.inboxLock.release()
         
         
@@ -304,7 +323,7 @@ class PostOffice(PlayerThread):
                 self.sendStatus()
             self.loopCount+=1
             #self.player.stmpPrint('NAPPING:',self.napTime)
-            time.sleep(self.napTime)
+            time.sleep(self.napTime*3)
         
 
 class PlayerMapper(PlayerThread):
