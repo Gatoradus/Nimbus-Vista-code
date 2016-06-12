@@ -189,7 +189,7 @@ class Brain(PlayerThread):
                     self.player.outboxLock.release()
                     
             #self.player.stmpPrint('NAPPING:',self.napTime*10)    
-            time.sleep(self.napTime)
+            time.sleep(self.napTime*3)
         
 class PostOffice(PlayerThread):
     
@@ -323,7 +323,7 @@ class PostOffice(PlayerThread):
                 self.sendStatus()
             self.loopCount+=1
             #self.player.stmpPrint('NAPPING:',self.napTime)
-            time.sleep(self.napTime*3)
+            time.sleep(self.napTime)
         
 
 class PlayerMapper(PlayerThread):
