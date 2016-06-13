@@ -2,7 +2,7 @@
 	"multicast_group_ip": "224.3.29.71",
 	"name": "P000",
 	"id": "P000",
-	"x": 100,
+	"x": 80,
 	"weight": 200,
 	"napTime": 0.3,
 	"z": 1,
