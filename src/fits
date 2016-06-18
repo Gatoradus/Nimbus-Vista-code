@@ -103,7 +103,7 @@ class FITSGUI(Frame):
         #self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         self.drawField()
-        time.sleep(0.1)
+        #time.sleep(0.1)
         
         #print ("FITS:" + str(self.player.playerMap))
         for pid, player in self.players.items():
@@ -126,7 +126,7 @@ class FITSGUI(Frame):
 #         
          
         self.master.after(self.fieldUpdateInterval, self.drawPlayers)
-        
+        #self.master.after_idle()
         
     def load_file(self):
         fname = askopenfilename(filetypes=(("Player files", "*.json"),

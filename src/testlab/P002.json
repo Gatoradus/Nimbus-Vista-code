@@ -4,7 +4,7 @@
 	"id": "P002",
 	"x": 75,
 	"weight": 200,
-	"napTime": 0.3,
+	"napTime": 0.01,
 	"z": 1,
 	"server_address": [
 		"",
