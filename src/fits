@@ -44,19 +44,19 @@ class FITSGUI(Frame):
         self.master.columnconfigure(5, weight=1)
         self.grid(sticky=W+E+N+S)
 
-        self.button = Button(self, text="Browse", command=self.load_file, width=10)
-        self.button.grid(row=1, column=0, sticky=W)
+        #self.button = Button(self, text="Browse", command=self.load_file, width=10)
+        #self.button.grid(row=1, column=0, sticky=W)
 
 
-        self.label = Label(master, text="FiTS Control Console")
-        self.label.grid(row=1, column=0, sticky=E)
+        #self.label = Label(master, text="FiTS Control Console")
+        #self.label.grid(row=1, column=0, sticky=E)
 
         #self.greet_button = Button(master, text="Test Button 1", command=self.greet)
         #self.greet_button.grid(row=1, column=2, sticky=W)
 
-        self.close_button = Button(master, text="Close", command=master.quit)
-        self.close_button.grid(row=2, column=2, sticky=N)
-        w = Canvas(master, width=680, height=600)
+        #self.close_button = Button(master, text="Close", command=master.quit)
+        #self.close_button.grid(row=2, column=2, sticky=N)
+        w = Canvas(master, width=650, height=600)
         w.grid(row=2, column=0, sticky=W)
 
         menubar = Menu(master)
@@ -87,7 +87,7 @@ class FITSGUI(Frame):
         #w.create_rectangle(50, 25, 150, 75, fill="blue") 
         self.w = w   
         self.master.after(0,self.drawPlayers)
-        self.w.create_rectangle(0,0, 680,600 ,fill="grey")
+        self.w.create_rectangle(0,0, 780,600 ,fill="grey")
 
     def greet(self):
         print("Greetings!")
@@ -111,13 +111,20 @@ class FITSGUI(Frame):
                                     (player.x+1)*self.xscale, (player.y+1)*self.yscale, fill="blue")
         if self.selectedPlayer:
             sp = self.players[self.selectedPlayer]
+            self.w.create_rectangle(sp.x*self.xscale, sp.y*self.yscale,
+                                    (sp.x+1)*self.xscale, (sp.y+1)*self.yscale, fill="red")
+            self.w.create_text((sp.x-3)*self.xscale,
+                                       (sp.y-3)*self.yscale,
+                                       text=sp.id,fill="darkblue")
             #self.w.create_rectangle(30,30,50,50, fill="black")
             if sp.playerMap:
                 #self.w.create_rectangle(30,30,50,50, fill="black")
-                for pid, p10000 in sp.playerMap.items():
+                for pid, mappedPlayer in sp.playerMap.items():
                 #if '10000' in sp.playerMap:
-                    #p10000 = sp.playerMap['10000']
-                    self.w.create_rectangle(p10000.x*self.xscale, p10000.y*self.yscale,(p10000.x+1)*self.xscale, (p10000.y+1)*self.yscale, fill="green")
+                    self.w.create_text((mappedPlayer.x-3)*self.xscale,
+                                       (mappedPlayer.y-3)*self.yscale,
+                                       text=pid)
+                    self.w.create_rectangle(mappedPlayer.x*self.xscale, mappedPlayer.y*self.yscale,(mappedPlayer.x+1)*self.xscale, (mappedPlayer.y+1)*self.yscale, fill="green")
                     #                        (player.x+1)*self.xscale, (player.y+1)*self.yscale, fil
                 #for id, player in sp.playerMap:
 #                   #pass

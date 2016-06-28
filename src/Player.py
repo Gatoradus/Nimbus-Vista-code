@@ -117,6 +117,7 @@ class Player(object):
         self.uniqueMessageNumber+=1
     
     def stmpPrint(self,*args, logLevel=logging.INFO):
+        return
         currentThread = threading.current_thread()
         threadName = currentThread.getName()
         messageNumber = self.uniqueMessageNumber
