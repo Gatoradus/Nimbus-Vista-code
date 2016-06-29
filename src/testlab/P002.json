@@ -15,5 +15,6 @@
 	"receiver":true,
 	"sender":true,
 	"sender_port": 10000,
-	"sendingDelay": 3
+	"sendingDelay": 3,
+	"type":"bot"
 }

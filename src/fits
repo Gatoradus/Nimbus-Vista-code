@@ -29,7 +29,7 @@ class FITSGUI(Frame):
         self.master = master
         self.xscale = 5
         self.yscale = 5
-        self.player = Player()
+        #self.player = Player()
         self.fieldUpdateInterval = 1
         self.fieldX = 10
         self.fieldY = 10
@@ -98,7 +98,7 @@ class FITSGUI(Frame):
         self.w.create_line(self.fieldX, self.fieldY, self.fieldX + self.fieldW, self.fieldY,fill="blue")
         self.w.create_line(self.fieldX, self.fieldY + self.fieldH, self.fieldX + self.fieldW, self.fieldY + self.fieldH,fill="blue")
     
-     #   self.w.create_line(self.fieldX, self.fieldY, self.fieldX, self.fieldY + self.fieldW,fill="blue")
+    #   self.w.create_line(self.fieldX, self.fieldY, self.fieldX, self.fieldY + self.fieldW,fill="blue")
     def drawPlayers(self):
         #self.w.create_rectangle(0,0, 680,600 ,fill="grey")
         self.w.create_rectangle(0,0, 680,600 ,fill="grey")

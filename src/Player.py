@@ -9,6 +9,7 @@ import datetime
 import queue
 import random
 import logging
+import re
 #logging.basicConfig(filename='example.log',level=logging.DEBUG)
 #logging.debug('This message should go to the log file')
 #logging.info('So should this')
@@ -17,6 +18,7 @@ import logging
 class Player(object):
     def __init__(self,pd=dict(),fname=None,mapped=False):
         if pd:
+            #print("pd exists.")
             self.__dict__ = pd
             #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
             if hasattr(self, 'multicast_group_ip') and hasattr('self,sender_port'):
@@ -42,6 +44,7 @@ class Player(object):
             self.multicast_group = (self.multicast_group_ip, self.sender_port)
                      
         else:
+            #print("WHY?")
             self.x = 0
             self.y = 0
             self.z = 0
@@ -85,7 +88,8 @@ class Player(object):
         
         # Might help with servers on PC.
         self.senderSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    #    self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    # Above line removed because the version on the Pi (3.2.3) doesn't have this.
         self.senderSock.settimeout(0.1)
         #self.senderSock.setblocking()
         # Set the time-to-live for messages to 1 so they do not go past the
@@ -98,7 +102,8 @@ class Player(object):
             self.receiverSock.settimeout(0.1)
     # Bind to the server address
             self.senderSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-            self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    #        self.senderSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    # Above line removed because the version on the Pi (3.2.3) doesn't have this.
             self.receiverSock.bind(self.server_address)
     
     # Tell the operating system to add the socket to the multicast group
@@ -117,7 +122,7 @@ class Player(object):
         self.uniqueMessageNumber+=1
     
     def stmpPrint(self,*args, logLevel=logging.INFO):
-        return
+        #return
         currentThread = threading.current_thread()
         threadName = currentThread.getName()
         messageNumber = self.uniqueMessageNumber
@@ -262,6 +267,21 @@ class Brain(PlayerThread):
         
         super(Brain, self).__init__(player)
 
+    def getLocationFromWifi(self):
+        f = open('/proc/net/wireless','r')
+        f.readline()
+        f.readline()
+        stats = f.readline()
+        statsArr = re.split(r'[;,\s]\s*', stats)
+        [link,level,noise] = map(lambda x: float(x), [statsArr[2],statsArr[3],statsArr[4]])
+        self.x = link
+        self.y = level
+        self.z = noise
+        
+        
+        
+        
+
     def run(self):
         print ("starting Brain..." + self.player.name)
         while True:
@@ -289,17 +309,18 @@ class Brain(PlayerThread):
             if not self.player.POThread.isAlive():
                     self.player.POThread.start()
                     
-            #print ("Brain is running..." + self.player.name)
-            
-            xr = random.randint(-2,2)*0.1
-            yr = random.randint(-2,2)*0.1
-            
-            newX = self.player.x+xr
-            newY = self.player.y+yr
-            if  not (newX > self.player.maxX or newY > self.player.maxY
-                      or newX < self.player.minX or newY < self.player.minY):
-                self.player.x=newX
-                self.player.y=newY
+            if self.player.type == "human":
+                self.getLocationFromWifi()
+            else:#print ("Brain is running..." + self.player.name)
+                xr = random.randint(-2,2)*0.1
+                yr = random.randint(-2,2)*0.1
+                
+                newX = self.player.x+xr
+                newY = self.player.y+yr
+                if  not (newX > self.player.maxX or newY > self.player.maxY
+                          or newX < self.player.minX or newY < self.player.minY):
+                    self.player.x=newX
+                    self.player.y=newY
                 
             if self.player.hasMoved():            
                 if self.player.sender:
