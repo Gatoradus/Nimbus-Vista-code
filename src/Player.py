@@ -21,7 +21,7 @@ class Player(object):
             #print("pd exists.")
             self.__dict__ = pd
             #self.multicast_group = (self.multicast_group_ip, self.server_address[1])
-            if hasattr(self, 'multicast_group_ip') and hasattr('self,sender_port'):
+            if hasattr(self, 'multicast_group_ip') and hasattr(self,'sender_port'):
                 self.multicast_group = (self.multicast_group_ip, self.sender_port)
         elif fname is not None:
             print ("fname found:" + fname)
@@ -52,7 +52,7 @@ class Player(object):
             self.weight = 200
             self.name = "UNNAMED"
             self.id = 0
-        self.uniqueMessageNumber = 0
+        self.messageNumber = 0
         self.lastx = self.x
         self.lasty = self.y
         self.lastz = self.z
@@ -73,14 +73,29 @@ class Player(object):
             self.threadPool = [self.brainThread,self.PMThread,self.POThread]
             self.longName = self.name + "-" + str(self.id)
             self.logger = logging.getLogger(self.longName)
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(logging.DEBUG)
             self.fh = logging.FileHandler(self.longName + '.log')
-            self.fh.setLevel(logging.WARNING)
+            self.fh.setLevel(logging.DEBUG)
             self.logger.addHandler(self.fh)
             self.minX = 2
             self.minY = 2
             self.maxX = 110
             self.maxY = 100
+
+    def getLocationFromWifi(self):
+        f = open('/proc/net/wireless','r')
+        f.readline()
+        f.readline()
+        stats = f.readline()
+        statsArr = re.split(r'[;,\s]\s*', stats)
+        [link,level,noise] = map(lambda x: abs(float(x)), [statsArr[2],statsArr[3],statsArr[4]])
+        self.x = link
+        self.y = level
+        self.z = noise
+            
+        
+        
+
 
     def bindSockets(self):
         self.loopCount = 0
@@ -118,16 +133,16 @@ class Player(object):
     def start(self):
         print ("starting Player...")
         
-    def messageStamp(self):
-        self.uniqueMessageNumber+=1
+    def getNewMessageNumber(self):
+        self.messageNumber+=1
     
-    def stmpPrint(self,*args, logLevel=logging.INFO):
+    def stmpPrint(self,*args, logLevel=logging.DEBUG):
         #return
         currentThread = threading.current_thread()
         threadName = currentThread.getName()
-        messageNumber = self.uniqueMessageNumber
+        messageNumber = self.messageNumber
         
-        s = '{}:{}:{}:'.format(threadName,str(messageNumber).zfill(6),datetime.datetime.now())
+        s = '{}:{}:'.format(threadName,datetime.datetime.now())
         
         for a in args:
             s = s + str(a)
@@ -180,19 +195,26 @@ class Player(object):
             self.stmpPrint ('Raw data:' + data)
             messageDict = json.loads(data)
             
+            incomingPlayerId = messageDict['id']
+            incomingPlayerTimeStamp = messageDict['timeStamp']
+            incomingPlayerThreadName = messageDict['threadName']
+            incomingPlayerMessageNumber = messageDict['messageNumber']
+            
+            logmsg = '<===:{}:{}:{}:{}'.format(incomingPlayerId,incomingPlayerThreadName,incomingPlayerMessageNumber,incomingPlayerTimeStamp)
+            self.stmpPrint(logmsg,logLevel=logging.WARNING)
             p = Player(pd=messageDict,mapped=True)
             if 'id' in messageDict:
                     self.playerMap[messageDict['id']] = p
-                    self.messageStamp()
-                    self.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id),logging.WARNING)
-                    self.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.playerMap)),logging.WARNING)
+                    #self.messageStamp()
+                    self.stmpPrint("Found Player!:" + str(p.id),logLevel=logging.WARNING)
+                    self.stmpPrint("Found Player!:" + str(len(self.playerMap)),logLevel=logging.WARNING)
                 
             
-            
+            self.stmpPrint("Message received",logLevel=logging.WARNING)
             for key,val in messageDict.items():
-                self.stmpPrint("\t:KEY: " + key + ", VAL: " + str(val),logging.WARNING)
+                self.stmpPrint("\t:KEY: " + key + ", VAL: " + str(val),logLevel=logging.WARNING)
                 
-            self.stmpPrint (':sending acknowledgement to', address)
+            self.stmpPrint ('sending acknowledgement to', address)
             self.receiverSock.sendto(bytes('ack','UTF-8'), address)
             #self.player.stmpPrint (':Adding message to inbox' )
             #self.player.inbox.append(messageDict)
@@ -204,7 +226,7 @@ class Player(object):
         
     
         
-        self.stmpPrint (":Returning from 'listen(self,threadName)'")
+        self.stmpPrint ("Returning from 'listen(self,threadName)'")
 
 
     def sendStatus(self):
@@ -215,34 +237,20 @@ class Player(object):
             message = self.outboxq.get()
             self.outboxLock.release()
             messageString = json.dumps(message)
-            self.stmpPrint (":Trying to send my location...")       
-            
-            
+            self.stmpPrint (":Trying to send my location...") 
             
             try:
                 # Send data to the multicast group
-                self.stmpPrint (':sending "%s"' % messageString)
-                sent = self.senderSock.sendto(bytes(messageString,'UTF-8'), self.multicast_group)
-                
-                # Look for responses from all recipients
-#                while True:
- #                   self.stmpPrint ('waiting to receive')
-  #                  try:
-   #                     data, server = self.senderSock.recvfrom(16)
-    #                except socket.timeout:
-     #                   #self.player.outbox.append(message)
-      #                  self.stmpPrint ('timed out, no more responses')
-       #                 break
-        #            else:
-                        
-         #               self.stmpPrint ('received "%s" from %s' % (data,server))
+                self.stmpPrint ('===>"%s"' % messageString,logLevel=logging.WARNING)
+                self.senderSock.sendto(bytes(messageString,'UTF-8'), self.multicast_group)
+                #      self.stmpPrint ('received "%s" from %s' % (data,server))
     
             finally:
                 pass
                 self.stmpPrint (':Executing finally clause.')
                 #self.senderSock.close()   
             
-            self.stmpPrint (":Returning from 'sendStatus(self,threadName)'")
+            self.stmpPrint ("Returning from 'sendStatus(self,threadName)'")
         else:
             self.outboxLock.release()
 
@@ -267,19 +275,7 @@ class Brain(PlayerThread):
         
         super(Brain, self).__init__(player)
 
-    def getLocationFromWifi(self):
-        f = open('/proc/net/wireless','r')
-        f.readline()
-        f.readline()
-        stats = f.readline()
-        statsArr = re.split(r'[;,\s]\s*', stats)
-        [link,level,noise] = map(lambda x: float(x), [statsArr[2],statsArr[3],statsArr[4]])
-        self.x = link
-        self.y = level
-        self.z = noise
-        
-        
-        
+    
         
 
     def run(self):
@@ -289,18 +285,9 @@ class Brain(PlayerThread):
             self.player.lasty = self.player.y
             self.player.lastz = self.player.z
             self.player.stmpPrint("There are " + str(self.player.inboxq.qsize()) + " inbound messages.")
-            #if self.player.inboxq.qsize() > 0:                
-                # assume for now that this message is a player's location.
-            #    locDict = self.player.inboxq.get()
-            #    self.player.stmpPrint('INBOX:' + str(locDict))
-            #    p = Player(pd=locDict,mapped=True)
-            #    if 'id' in locDict:
-            #        self.player.playerMap[locDict['id']] = p
-                    
-            #        self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(p.id))
-            #        self.player.stmpPrint("Found Player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:" + str(len(self.player.playerMap)))
-                
+              
             self.player.stmpPrint("There are " + str(self.player.outboxq.qsize()) + " outbound messages.")
+            
             # This will generate the "threads can only be started once" error if the message
             # goes out more than once.
             if not self.player.PMThread.isAlive():
@@ -310,7 +297,7 @@ class Brain(PlayerThread):
                     self.player.POThread.start()
                     
             if self.player.type == "human":
-                self.getLocationFromWifi()
+                self.player.getLocationFromWifi()
             else:#print ("Brain is running..." + self.player.name)
                 xr = random.randint(-2,2)*0.1
                 yr = random.randint(-2,2)*0.1
@@ -324,12 +311,18 @@ class Brain(PlayerThread):
                 
             if self.player.hasMoved():            
                 if self.player.sender:
+                    currentThread = threading.current_thread()
                     message = dict()
                     message['x'] = self.player.x
                     message['y'] = self.player.y
                     message['z'] = self.player.z
                     message['subject'] = "L" # 'L' is for location messages
                     message['id'] = self.player.id
+                    message['messageNumber'] = self.player.messageNumber
+                    message['threadName'] = currentThread.getName()
+                    ts = '{}'.format(datetime.datetime.now())
+                    message['timeStamp'] = ts
+        
                     
                     #self.player.outbox.append(message)
                     self.player.outboxLock.acquire()
@@ -338,9 +331,10 @@ class Brain(PlayerThread):
                         #throw away the message on top so we don't let them pile up!
                     
                     self.player.outboxq.put_nowait(message)
+                    self.player.getNewMessageNumber()
                     self.player.outboxLock.release()
                     
-            self.player.stmpPrint('NAPPING:',self.player.napTime*10, logging.WARNING)    
+            self.player.stmpPrint('NAPPING:',self.player.napTime*10, logLevel=logging.WARNING)    
             time.sleep(self.player.napTime*2)
         
 class PostOffice(PlayerThread):
@@ -367,7 +361,7 @@ class PostOffice(PlayerThread):
                 self.player.stmpPrint("Starting to SEND!!!!!\n\n")
                 self.player.sendStatus()
             self.player.loopCount+=1
-            self.player.stmpPrint('NAPPING:',self.player.napTime, logging.WARNING)
+            self.player.stmpPrint('NAPPING:',self.player.napTime, logLevel=logging.WARNING)
             time.sleep(self.player.napTime)
         
 
