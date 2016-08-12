@@ -68,8 +68,10 @@ p_subscribe_baseline = 0.001
 p_subscribe_per_friend = 0.01
 p_subscribe_per_family = p_subscribe_per_friend * 10
 
-p_team_join_baseline = 0.01
+p_team_join_baseline = 0.001
+#p_team_join_baseline = 0.0
 p_team_join_per_leaguemate = 0.01
+#p_team_join_per_leaguemate = 0
 subscription_freebie_period = 12
 
 n_subscriptions_nonfree = 0
@@ -83,11 +85,12 @@ c_d = 100
 pr_d = 200
 pr_s = 10
 
-n_time_periods = 12
+n_time_periods = 60
 
 def calculate_combined_probability(p_baseline,p,n):
     p = 1-(1-p)**n
     p = 1-((1-p)*(1-p_baseline))
+    #return 0.005
     return p
     
 
@@ -177,13 +180,14 @@ class Team(object):
         # team MIGHT subscribe
         global p_team_join_baseline, p_team_join_per_leaguemate, calculate_combined_probability
         r = random()
-        p = calculate_combined_probability(p_team_join_baseline, p_team_join_per_leaguemate, team.league.n_teams_subscribed)
-        
+        p = calculate_combined_probability(p_team_join_baseline, p_team_join_per_leaguemate, self.league.n_teams_subscribed)
+        #print("{},{}".format(p,r))
         if r < p:
-            team.subscribed = True
-            print("Team subscribed!{}".format(p))
-            team.league.n_teams_subscribed+=1
-            for player in team.players:
+            self.subscribed = True
+            print("Team subscribed!{},{}".format(p,r))
+            self.league.n_teams_subscribed+=1
+            print("n_teams_subscribed {}".format(self.league.n_teams_subscribed))
+            for player in self.players:
                 player.buy_device()
     
 def grow_subscribers(population):
@@ -206,6 +210,7 @@ def grow_subscribers(population):
         #print("testing team")
         # count the teams in each league that subscribed
         for team in league.teams:
+            #print("testing team")
             if not team.subscribed:
                
                 team.subscribes()
