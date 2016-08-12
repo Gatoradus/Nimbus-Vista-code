@@ -5,6 +5,9 @@ Created on Aug 11, 2016
 '''
 
 from random import random, randint
+from matplotlib import pyplot as plt
+import numpy as np
+
 
 # Assumptions: 
 # * Sales of HCs drive subscriptions to online services. 
@@ -57,41 +60,111 @@ from random import random, randint
 # C_tx(B_d) = B_d * C_d
 # B_s = B_dfB_d + 
 
-n_leagues = 5
-n_teams_per_league = 20
-n_players_per_team = 30
-n_friends_per_player = 20
-n_family_per_player = 3
-r_nonplayers_per_player = 30
+class World(object):
+    def __init__(self,d=dict()):
+        self.__dict__ = d
+        self.n_population = self.n_leagues * self.n_teams_per_league * self.n_players_per_team *self.r_nonplayers_per_player
+        print("hello:" + str(self.n_population))
+        print(self.income)
+        self.leagues=[]
+        self.population = []
+        self.players_on_teams=[]
+        for i in range(0,self.n_leagues):
+            league = League(self)
+            for j in range(0,self.n_teams_per_league):
+                team = Team(self,league)
+                for k in range(0,self.n_players_per_team):
+                    player = Person(self,team)
+                    self.n_population-=1
+                    team.add(player)
+                    self.players_on_teams.append(player)
+                    self.population.append(player)
+                league.add(team)
+            self.leagues.append(league)
+    
+        for i in range(0,self.n_population):
+            np = Person(self)
+            self.population.append(np)
+    
+        print("hello:" + str(self.n_population))
+        self.n_players_on_teams = self.n_leagues * self.n_teams_per_league * self.n_players_per_team
+        print(str(len(self.population) - self.n_players_on_teams))
+        
+        for person in self.population:
+            person.pick_friends()
+            person.pick_family()
+    
+    @staticmethod
+    def calculate_combined_probability(p_baseline,p,n):
+        p = 1-(1-p)**n
+        p = 1-((1-p)*(1-p_baseline))
+        #return 0.005
+        return p
 
-p_subscribe_baseline = 0.001
-p_subscribe_per_friend = 0.01
-p_subscribe_per_family = p_subscribe_per_friend * 10
 
-p_team_join_baseline = 0.001
-#p_team_join_baseline = 0.0
-p_team_join_per_leaguemate = 0.01
-#p_team_join_per_leaguemate = 0
-subscription_freebie_period = 12
+    def run(self):
+        self.a_income = []
+        self.a_costs = []
+        self.a_profit = []
+        self.a_n_subscriptions_free = []
+        self.a_n_subscriptions_nonfree = []
+        self.a_n_units_sold = []
+        
+        
+        self.tps = range(0,self.n_time_periods)
+        for tp in self.tps:
+            
+            
+            
+            self.iterate()
+            self.profit = self.income - self.costs
+            print("t={},i={},c={},p={}:sf={},sp={},u={}".format(tp,self.income, self.costs, self.profit, self.n_subscriptions_free,self.n_subscriptions_nonfree,self.n_units_sold))
+            
+          
+            self.a_income.append(self.income)
+            self.a_costs.append(self.costs)
+            self.a_profit.append(self.profit)
+            self.a_n_subscriptions_free.append(self.n_subscriptions_free)
+            self.a_n_subscriptions_nonfree.append(self.n_subscriptions_nonfree)
+            self.a_n_units_sold.append(self.n_units_sold)
+            
+            
+        
 
-n_subscriptions_nonfree = 0
-n_subscriptions_free = 0
-n_units_sold = 0
 
-income = 0
-costs = 0
+    def iterate(self):
+        #global income, costs, self.n_subscriptions_free, self.n_subscriptions_nonfree, self.n_units_sold
+        #global p_team_join_baseline, p_team_join_per_leaguemate
+        for person in self.population:
+            if person.team == None:
+                if not hasattr(person,"subscription_freebie_period"):
+                    person.purchases_device()
+                        
+                else:
+                    if person.subscription_freebie_period > 0:                    
+                        person.subscription_freebie_period-=1
+                    elif person.subscription_freebie_period == 0:
+                        person.subscription_freebie_period = -1
+                        self.n_subscriptions_nonfree += 1
+                        self.n_subscriptions_free -= 1
+                        
+        for league in self.leagues:
+            #print("testing team")
+            # count the teams in each league that subscribed
+            for team in league.teams:
+                #print("testing team")
+                if not team.subscribed:
+                   
+                    team.subscribes()
+                   
+                
+            
+                        
+        self.income += self.n_subscriptions_nonfree * self.pr_s 
 
-c_d = 100
-pr_d = 200
-pr_s = 10
 
-n_time_periods = 60
 
-def calculate_combined_probability(p_baseline,p,n):
-    p = 1-(1-p)**n
-    p = 1-((1-p)*(1-p_baseline))
-    #return 0.005
-    return p
+
     
 
 class Friendable(object):
@@ -117,7 +190,8 @@ class Friendable(object):
             
         
 class League(object):
-    def __init__(self):
+    def __init__(self,world):
+        self.w = world
         self.teams = []
         self.n_teams_subscribed = 0
     
@@ -125,50 +199,47 @@ class League(object):
         self.teams.append(team)
     
 class Person(Friendable):
-    def __init__(self,team=None):
+    def __init__(self,world,team=None):
+        self.w = world
         self.team = team
         self.n_family_with_device = 0
         self.n_friends_with_device = 0
         
-    def pick_friends(self,population):        
-        for i in range(0,n_friends_per_player):
-            r = randint(0,len(population)-1)
-            self.add_friend(population[r])
+    def pick_friends(self):        
+        for i in range(0,self.w.n_friends_per_player):
+            r = randint(0,len(self.w.population)-1)
+            self.add_friend(self.w.population[r])
             
-    def pick_family(self,population):        
-        for i in range(0,n_family_per_player):
-            r = randint(0,len(population)-1)
-            self.add_family(population[r])
+    def pick_family(self):        
+        for i in range(0,self.w.n_family_per_player):
+            r = randint(0,len(self.w.population)-1)
+            self.add_family(self.w.population[r])
             
     def buy_device(self):
-        global income, costs, n_units_sold, n_subscriptions_free
-        self.subscription_freebie_period = subscription_freebie_period
-        income += pr_d
-        costs += c_d
-        n_units_sold += 1
-        n_subscriptions_free += 1
+        #global income, costs, n_units_sold, n_subscriptions_free
+        self.subscription_freebie_period = self.w.subscription_freebie_period
+        self.w.income += self.w.pr_d
+        self.w.costs += self.w.c_d
+        self.w.n_units_sold += 1
+        self.w.n_subscriptions_free += 1
             
     def purchases_device(self):
-        global p_subscribe_baseline,p_subscribe_per_friend
-        global p_subscribe_per_family
+        #global p_subscribe_baseline,p_subscribe_per_friend
+        #global p_subscribe_per_family
         
         
         r = random()
-        p = calculate_combined_probability(p_subscribe_baseline,p_subscribe_per_friend,self.n_friends_with_device)
-        p = calculate_combined_probability(p,p_subscribe_per_family,self.n_family_with_device)
+        p = World.calculate_combined_probability(self.w.p_subscribe_baseline,self.w.p_subscribe_per_friend,self.n_friends_with_device)
+        p = World.calculate_combined_probability(p,self.w.p_subscribe_per_family,self.n_family_with_device)
         if r < p:
             self.buy_device()
             return True
         return False
-        
-         
-
-        
-    
 
         
 class Team(object):
-    def __init__(self,league):
+    def __init__(self,world,league):
+        self.w = world
         self.league = league
         self.players = []
         self.subscribed = False
@@ -178,9 +249,9 @@ class Team(object):
         
     def subscribes(self):
         # team MIGHT subscribe
-        global p_team_join_baseline, p_team_join_per_leaguemate, calculate_combined_probability
+        #global p_team_join_baseline, p_team_join_per_leaguemate, calculate_combined_probability
         r = random()
-        p = calculate_combined_probability(p_team_join_baseline, p_team_join_per_leaguemate, self.league.n_teams_subscribed)
+        p = World.calculate_combined_probability(self.w.p_team_join_baseline, self.w.p_team_join_per_leaguemate, self.league.n_teams_subscribed)
         #print("{},{}".format(p,r))
         if r < p:
             self.subscribed = True
@@ -190,82 +261,58 @@ class Team(object):
             for player in self.players:
                 player.buy_device()
     
-def grow_subscribers(population):
-    global income, costs, n_subscriptions_free, n_subscriptions_nonfree, n_units_sold
-    global p_team_join_baseline, p_team_join_per_leaguemate
-    for person in population:
-        if person.team == None:
-            if not hasattr(person,"subscription_freebie_period"):
-                person.purchases_device()
-                    
-            else:
-                if person.subscription_freebie_period > 0:                    
-                    person.subscription_freebie_period-=1
-                elif person.subscription_freebie_period == 0:
-                    person.subscription_freebie_period = -1
-                    n_subscriptions_nonfree += 1
-                    n_subscriptions_free -= 1
-                    
-    for league in leagues:
-        #print("testing team")
-        # count the teams in each league that subscribed
-        for team in league.teams:
-            #print("testing team")
-            if not team.subscribed:
-               
-                team.subscribes()
-               
-            
-        
-                    
-    income += n_subscriptions_nonfree * pr_s 
+
 
 if __name__ == '__main__':
-    n_population = n_leagues * n_teams_per_league * n_players_per_team * r_nonplayers_per_player
-    print("hello:" + str(n_population))
-    print(income)
-    leagues=[]
-    population = []
-    players_on_teams=[]
-    for i in range(0,n_leagues):
-        league = League()
-        for j in range(0,n_teams_per_league):
-            team = Team(league)
-            for k in range(0,n_players_per_team):
-                player = Person(team)
-                n_population-=1
-                team.add(player)
-                players_on_teams.append(player)
-                population.append(player)
-            league.add(team)
-        leagues.append(league)
 
-    for i in range(0,n_population):
-        np = Person()
-        population.append(np)
-
-    print("hello:" + str(n_population))
-    n_players_on_teams = n_leagues * n_teams_per_league * n_players_per_team
-    print(str(len(population) - n_players_on_teams))
+    world_dict = {
+        "n_leagues" : 5,
+        "n_teams_per_league" : 20,
+        "n_players_per_team" : 30,
+        "n_friends_per_player" : 20,
+        "n_family_per_player" : 3,
+        "r_nonplayers_per_player" : 30,
+        
+        "p_subscribe_baseline" : 0.001,
+        "p_subscribe_per_friend" : 0.01,
+        "p_subscribe_per_family" : 0.1,
+        
+        "p_team_join_baseline" : 0.01,
+        #"p_team_join_baseline" : 0.0,
+        "p_team_join_per_leaguemate" : 0.1,
+        #"p_team_join_per_leaguemate" : 0,
+        "subscription_freebie_period" : 12,
+        
+        "n_subscriptions_nonfree" : 0,
+        "n_subscriptions_free" : 0,
+        "n_units_sold" : 0,
+        
+        "income" : 0,
+        "costs" : 0,
+        
+        "c_d" : 100,
+        "pr_d" : 200,
+        "pr_s" : 10,
+        
+        "n_time_periods" : 60
+    }
+     
+    w = World(world_dict)
+    w.run()
+       
     
-    for person in population:
-        person.pick_friends(population)
-        person.pick_family(population)
-     
-     
-    print("Done picking friends and family.")   
-    for tp in range(0,n_time_periods):
-        
-        c = 0
-        
-        grow_subscribers(population)
-        profit = income - costs
-        print("t={},i={},c={},p={}:sf={},sp={},u={}".format(tp,income, costs, profit, n_subscriptions_free,n_subscriptions_nonfree,n_units_sold))
-        
-
         
     print("All done!")
         
 
-        
+    x = np.linspace(0, w.n_time_periods)
+    
+    with plt.style.context('fivethirtyeight'):
+        plt.plot(w.tps, w.a_income)
+        plt.plot(w.tps, w.a_costs)
+        plt.plot(w.tps, w.a_profit)
+        plt.plot(w.tps, w.a_n_units_sold)
+    
+    
+    plt.show()        
     
