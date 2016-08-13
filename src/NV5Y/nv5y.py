@@ -9,56 +9,33 @@ from matplotlib import pyplot as plt
 import numpy as np
 import math
 
-# Assumptions: 
-# * Sales of HCs drive subscriptions to online services. 
-#   Buyers of HC have high probability of subscribing.
-# * Purchasers of HCs have some positive influence on their friends to encourage
-#  them to buy, so this is another variable
+# The model world consists of leagues, leagues consist of teams, teams consist of people.
+# Spatial factors (i.e. physical proximity) are not modeled at this time.
 
-# * Costs: Advertising, Physical products, IT (website fees)
-#     Labor (maintain website), Labor (improve and maintain HC software)
-# Revenue: Product and subscriptions to website.
+# Premises of the model: 
+# ======================================================================
+# * People can be members of only one team.
+# * Teams can be members of only one league.
+# * There are many non-players for each player in the population.
+# * When a team buys devices it buys one for each player.
+# * Buyers of HC get a subscription which is free for a while.
+# * Players have lists of friends and a smaller list of family. They have some influence
+#     on both to encourage them to buy though more influence on their family.
+# * A team becomes more likely to buy according to the number of its fellow teams
+#     in its league that have done so.
+# * Public awareness of product starts at 0 and increase with each ad campaign.
+# * Likelihood of purchase for all possible buyers increases during ad campaigns.
+# * Salaries and other expenses rise with size of website
+# * There is little physical presence of the company (i.e. no large plants or offices).
+# * Cost of factories, factory labor, etc is simply rolled into cost of devices.
+# * Company does not own or desire to own device factories themselves at this time. 
+# * Website grows in size with subscriber base.
+# * Software maintenance cost (i.e development of new HC software and internal use software) 
+#    is a function of the scale of the revenue (not profit). The idea here is that revenue
+#    rather than profit reflects the sheer SCALE of the business. A good example would be
+#    airlines. Most have enormous revenue and are giant companies but many are not even
+#    profitable.
 
- # * Labor costs are primarily administrative and IT related. Manufacturing is
-# contracted out with manufacturing labor being considered part of the cost
-# per unit of devices sold.
-
-# Subscripting conventions
-# w: website related item
-# d: device related item
-# n: new
-# e: existing
-# tx: where 'x' is one of the above this means "total value",
-# i.e. unit_value * number of units.
-
-# Variables are thus: 
-# COSTS     ---------------------
-# A: advertising (effectiveness a function of time (product maturity)?)
-# L_w: IT staff for website
-# L_d: IT staff to improve and maintain device code.
-# C_d: Cost per unit of devices
-
-# REVENUES  ---------------------
-# P_d: Price per unit of devices
-# P_w: Price of a website subscription
-# S_n: New Subscribers
-# S_e: Existing Subscribers
-# 
-
-# Independent variables: (
-
-# B_d: buyers of devices
-# B_s: buyers of subscriptions. B_s has some dependency on B_d
-#   as we would offer a free initial subscription
-#   lasting for a period P for new device purchasers.
-# B_df: number of "friends" of a B_d.
-# B_di: coefficient of influence (multiply by B_df to get an idea of new buyers)
-#
-# Dependent variables 
-# 
-# Equations
-# C_tx(B_d) = B_d * C_d
-# B_s = B_dfB_d + 
 
 class World(object):
     def __init__(self,d=dict()):
@@ -69,6 +46,18 @@ class World(object):
              
         self.c_website_labor_per_subscription = 1/self.n_subscriptions_per_website_staffer * self.c_salary_per_website_staffer
         self.c_overhead = self.c_labor_overhead + self.c_physical_plant_overhead
+        self.current_ad_blitz_time_left = self.n_ad_blitz_duration
+        
+        self.p_originals = [
+            self.p_subscribe_baseline,
+            self.p_subscribe_per_friend,
+            self.p_subscribe_per_family,
+            
+            self.p_team_join_baseline,
+            #"p_team_join_baseline" : 0.0,
+            self.p_team_join_per_leaguemate
+        ]
+        
         
         print("hello:" + str(self.n_population))
         print(self.income)
@@ -100,12 +89,15 @@ class World(object):
             person.pick_friends()
             person.pick_family()
     
-    @staticmethod
-    def calculate_combined_probability(p_baseline,p,n):
+    
+    def calculate_combined_probability(self, p_baseline, p, n, personally_aware=False):
         p = 1-(1-p)**n
         p = 1-((1-p)*(1-p_baseline))
         #return 0.005
-        return p
+        if personally_aware == False:
+            return p * self.f_public_awareness_factor
+        else:
+            return p * max(self.f_public_awareness_factor,1)
 
 
     def run(self):
@@ -172,15 +164,49 @@ class World(object):
     def calculate_cost_device_software_maintenance(self):
         # assumption is that software products and maintencance scale
         # with the absolute size of the business (using revenue as a proxy)
-        cost = self.c_device_software_maintenance_coefficient * self.income
+        cost = self.f_device_software_maintenance_coefficient * self.income
         return cost
     
     def calculate_cost_advertising(self):
         ## FIXME ##
-        if self.t < 12:
-             return self.c_initial_ad_campaign 
+        r = random()
+        
+        if r < self.p_ad_blitz:
+            self.current_ad_blitz_time_left = self.n_ad_blitz_duration
+            print("AD BLITZ")
+            [   
+            self.p_subscribe_baseline,
+            self.p_subscribe_per_friend,
+            self.p_subscribe_per_family,
+            
+            self.p_team_join_baseline,
+            #"p_team_join_baseline" : 0.0,
+            self.p_team_join_per_leaguemate
+            ] = [x*self.p_ad_boost_factor for x in self.p_originals]
+        
+            
+        if self.current_ad_blitz_time_left > 0:
+            self.f_public_awareness_factor += self.f_public_awareness_factor_ad_boost
+            self.current_ad_blitz_time_left-=1
+            print("Ad blitz in effect")
+            return self.c_initial_ad_campaign 
+        
         else:
-             return 0   
+            [   
+            self.p_subscribe_baseline,
+            self.p_subscribe_per_friend,
+            self.p_subscribe_per_family,
+            
+            self.p_team_join_baseline,
+            #"p_team_join_baseline" : 0.0,
+            self.p_team_join_per_leaguemate
+            ] = self.p_originals  
+        
+             
+        
+            return 0 
+         
+        
         
          
 
@@ -245,11 +271,14 @@ class Person(Friendable):
     def purchases_device(self):
         #global p_subscribe_baseline,p_subscribe_per_friend
         #global p_subscribe_per_family
-        
-        
         r = random()
-        p = World.calculate_combined_probability(self.w.p_subscribe_baseline,self.w.p_subscribe_per_friend,self.n_friends_with_device)
-        p = World.calculate_combined_probability(p,self.w.p_subscribe_per_family,self.n_family_with_device)
+        if self.n_family_with_device + self.n_friends_with_device > 0:           
+            p = self.w.calculate_combined_probability(self.w.p_subscribe_baseline,self.w.p_subscribe_per_friend,self.n_friends_with_device, personally_aware=True)
+            p = self.w.calculate_combined_probability(p,self.w.p_subscribe_per_family,self.n_family_with_device, personally_aware=True)
+        else:
+            p = self.w.calculate_combined_probability(self.w.p_subscribe_baseline,self.w.p_subscribe_per_friend,self.n_friends_with_device)
+            p = self.w.calculate_combined_probability(p,self.w.p_subscribe_per_family,self.n_family_with_device)
+        
         if r < p:
             self.buy_device()
             return True
@@ -270,7 +299,10 @@ class Team(object):
         # team MIGHT subscribe
         #global p_team_join_baseline, p_team_join_per_leaguemate, calculate_combined_probability
         r = random()
-        p = World.calculate_combined_probability(self.w.p_team_join_baseline, self.w.p_team_join_per_leaguemate, self.league.n_teams_subscribed)
+        if self.league.n_teams_subscribed > 0:
+            p = self.w.calculate_combined_probability(self.w.p_team_join_baseline, self.w.p_team_join_per_leaguemate, self.league.n_teams_subscribed, personally_aware=True)
+        else:
+            p = self.w.calculate_combined_probability(self.w.p_team_join_baseline, self.w.p_team_join_per_leaguemate, self.league.n_teams_subscribed)
         #print("{},{}".format(p,r))
         if r < p:
             self.subscribed = True
@@ -286,11 +318,15 @@ if __name__ == '__main__':
 
     world_dict = {
         "c_initial_ad_campaign" : 30000,
-        "c_device_software_maintenance_coefficient" : 20000/1000000,
+        "f_public_awareness_factor" : 0,
+        "f_public_awareness_factor_ad_boost" : 0.1,
+        "f_device_software_maintenance_coefficient" : 20000/1000000,
+        
         "c_labor_overhead" : 10000, 
         "c_physical_plant_overhead" : 2000,
         "c_website_bandwidth_per_Gb" : 20,
         "n_website_bandwidth_Mb_per_subscription" : 10,
+        "n_ad_blitz_duration" : 5,
              
         "n_subscriptions_per_website_staffer" : 2000,
         "c_salary_per_website_staffer" : 50000,
@@ -304,6 +340,8 @@ if __name__ == '__main__':
         "n_family_per_player" : 3,
         "n_nonplayers_per_player" : 30,
         
+        "p_ad_blitz" : 0.08,
+        "p_ad_boost_factor" : 130,
         "p_subscribe_baseline" : 0.001,
         "p_subscribe_per_friend" : 0.01,
         "p_subscribe_per_family" : 0.1,
