@@ -7,7 +7,7 @@ Created on Aug 11, 2016
 from random import random, randint
 from matplotlib import pyplot as plt
 import numpy as np
-
+import math
 
 # Assumptions: 
 # * Sales of HCs drive subscriptions to online services. 
@@ -63,7 +63,13 @@ import numpy as np
 class World(object):
     def __init__(self,d=dict()):
         self.__dict__ = d
-        self.n_population = self.n_leagues * self.n_teams_per_league * self.n_players_per_team *self.r_nonplayers_per_player
+        self.c_website_bandwidth_per_Mb = self.c_website_bandwidth_per_Gb/1000
+        self.n_population = self.n_leagues * self.n_teams_per_league * self.n_players_per_team * self.n_nonplayers_per_player
+        self.c_website_hosting_per_subscription = self.c_website_bandwidth_per_Mb * self.n_website_bandwidth_Mb_per_subscription
+             
+        self.c_website_labor_per_subscription = 1/self.n_subscriptions_per_website_staffer * self.c_salary_per_website_staffer
+        self.c_overhead = self.c_labor_overhead + self.c_physical_plant_overhead
+        
         print("hello:" + str(self.n_population))
         print(self.income)
         self.leagues=[]
@@ -109,16 +115,14 @@ class World(object):
         self.a_n_subscriptions_free = []
         self.a_n_subscriptions_nonfree = []
         self.a_n_units_sold = []
-        
+        self.t = 0
         
         self.tps = range(0,self.n_time_periods)
-        for tp in self.tps:
-            
-            
+        for self.t in self.tps:
             
             self.iterate()
             self.profit = self.income - self.costs
-            print("t={},i={},c={},p={}:sf={},sp={},u={}".format(tp,self.income, self.costs, self.profit, self.n_subscriptions_free,self.n_subscriptions_nonfree,self.n_units_sold))
+            print("t={},i={},c={},p={}:sf={},sp={},u={}".format(self.t,self.income, self.costs, self.profit, self.n_subscriptions_free,self.n_subscriptions_nonfree,self.n_units_sold))
             
           
             self.a_income.append(self.income)
@@ -128,26 +132,22 @@ class World(object):
             self.a_n_subscriptions_nonfree.append(self.n_subscriptions_nonfree)
             self.a_n_units_sold.append(self.n_units_sold)
             
-            
-        
-
-
     def iterate(self):
         #global income, costs, self.n_subscriptions_free, self.n_subscriptions_nonfree, self.n_units_sold
         #global p_team_join_baseline, p_team_join_per_leaguemate
         for person in self.population:
-            if person.team == None:
-                if not hasattr(person,"subscription_freebie_period"):
-                    person.purchases_device()
-                        
-                else:
-                    if person.subscription_freebie_period > 0:                    
-                        person.subscription_freebie_period-=1
-                    elif person.subscription_freebie_period == 0:
-                        person.subscription_freebie_period = -1
-                        self.n_subscriptions_nonfree += 1
-                        self.n_subscriptions_free -= 1
-                        
+            
+            if not hasattr(person,"subscription_freebie_period"):
+                person.purchases_device()
+                    
+            else:
+                if person.subscription_freebie_period > 0:                    
+                    person.subscription_freebie_period-=1
+                elif person.subscription_freebie_period == 0:
+                    person.subscription_freebie_period = -1
+                    self.n_subscriptions_nonfree += 1
+                    self.n_subscriptions_free -= 1
+                    
         for league in self.leagues:
             #print("testing team")
             # count the teams in each league that subscribed
@@ -156,14 +156,33 @@ class World(object):
                 if not team.subscribed:
                    
                     team.subscribes()
-                   
-                
             
-                        
+        self.c_website = self.calculate_cost_website()
+        self.c_advertising = self.calculate_cost_advertising()
+        self.c_device_software_maintenance = self.calculate_cost_device_software_maintenance()
         self.income += self.n_subscriptions_nonfree * self.pr_s 
+        self.costs += self.c_website + self.c_device_software_maintenance + self.c_labor_overhead + self.c_physical_plant_overhead 
+        self.costs += self.c_advertising
 
-
-
+    def calculate_cost_website(self):
+        total_subscribers = self.n_subscriptions_nonfree + self.n_subscriptions_free
+        cost = self.c_website_hosting_per_subscription * total_subscribers + self.c_website_labor_per_subscription *  math.log(total_subscribers+1)
+        return cost
+    
+    def calculate_cost_device_software_maintenance(self):
+        # assumption is that software products and maintencance scale
+        # with the absolute size of the business (using revenue as a proxy)
+        cost = self.c_device_software_maintenance_coefficient * self.income
+        return cost
+    
+    def calculate_cost_advertising(self):
+        ## FIXME ##
+        if self.t < 12:
+             return self.c_initial_ad_campaign 
+        else:
+             return 0   
+        
+         
 
     
 
@@ -266,12 +285,24 @@ class Team(object):
 if __name__ == '__main__':
 
     world_dict = {
+        "c_initial_ad_campaign" : 30000,
+        "c_device_software_maintenance_coefficient" : 20000/1000000,
+        "c_labor_overhead" : 10000, 
+        "c_physical_plant_overhead" : 2000,
+        "c_website_bandwidth_per_Gb" : 20,
+        "n_website_bandwidth_Mb_per_subscription" : 10,
+             
+        "n_subscriptions_per_website_staffer" : 2000,
+        "c_salary_per_website_staffer" : 50000,
+        
+                  
+                  
         "n_leagues" : 5,
         "n_teams_per_league" : 20,
         "n_players_per_team" : 30,
         "n_friends_per_player" : 20,
         "n_family_per_player" : 3,
-        "r_nonplayers_per_player" : 30,
+        "n_nonplayers_per_player" : 30,
         
         "p_subscribe_baseline" : 0.001,
         "p_subscribe_per_friend" : 0.01,
