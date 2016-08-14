@@ -169,6 +169,8 @@ class World(object):
     
     def calculate_cost_advertising(self):
         ## FIXME ##
+        
+        self.f_public_awareness_factor = self.f_public_awareness_factor * self.f_public_awareness_decay_coefficient
         r = random()
         
         if r < self.p_ad_blitz:
@@ -321,7 +323,7 @@ if __name__ == '__main__':
         "f_public_awareness_factor" : 0,
         "f_public_awareness_factor_ad_boost" : 0.1,
         "f_device_software_maintenance_coefficient" : 20000/1000000,
-        
+        "f_public_awareness_decay_coefficient" : 0.99, # half-life of about 5 years.
         "c_labor_overhead" : 10000, 
         "c_physical_plant_overhead" : 2000,
         "c_website_bandwidth_per_Gb" : 20,
@@ -338,7 +340,7 @@ if __name__ == '__main__':
         "n_players_per_team" : 30,
         "n_friends_per_player" : 20,
         "n_family_per_player" : 3,
-        "n_nonplayers_per_player" : 30,
+        "n_nonplayers_per_player" : 600,
         
         "p_ad_blitz" : 0.08,
         "p_ad_boost_factor" : 130,
